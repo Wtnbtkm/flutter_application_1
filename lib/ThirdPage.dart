@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/FourPage.dart';
 
-class Thirdpage extends StatelessWidget{
+class ThirdPage extends StatelessWidget{
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -9,11 +10,10 @@ class Thirdpage extends StatelessWidget{
       ),
       body : Center(
         child: TextButton(
-          child: Text("最初のページに戻る"),
-          // （1） 前の画面に戻る
+          child: Text("4ページへ遷移する"),
+          // （4)ページ目に遷移する
           onPressed: (){
-            //最初の画面に遷移する
-            Navigator.popUntil(context, (route) => route.isFirst);
+            Navigator.push(context, MaterialPageRoute(builder: (context) => FourPage()));
           },
         ),
       )
