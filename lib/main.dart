@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-//import 'package:flutter_application_1/HomePage.dart';
-import 'package:flutter_application_1/MainPageWidget.dart';
+import 'package:flutter_application_1/HomePage.dart';
+//import 'package:flutter_application_1/MainPageWidget.dart';
 
 void main() {
   runApp(const MyApp());
@@ -37,8 +37,8 @@ class MyApp extends StatelessWidget {
       //flutterSDKのサンプルの場合
       //home: const MyHomePage(title: 'Flutter Demo Home Page'),
       //画面遷移の練習の場合
-      ///home: HomePage(),
-      home:MainPageWidget(),
+      home: HomePage(),
+      //home:MainPageWidget(),
     );
   }
 }
