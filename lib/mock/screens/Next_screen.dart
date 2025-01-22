@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/mock/screens/home_screen.dart'; // HomeScreen のインポート
+import 'package:flutter_application_1/mock/widgets/custom_button.dart'; // カスタムボタンのインポート
 
 // 次の画面
 class NextScreen extends StatelessWidget {
@@ -20,7 +21,8 @@ class NextScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
+            CustomButton(
+              text: 'ホームへ戻る',
               onPressed: () {
                 // Navigatorを使ってHomeScreenに遷移
                 Navigator.pushAndRemoveUntil(
@@ -29,7 +31,10 @@ class NextScreen extends StatelessWidget {
                   (route) => false, // これにより全ての既存ルートを破棄
                 );
               },
-              child: const Text('ホームへ戻る'),
+              backgroundColor: Colors.green, // 背景色をオレンジに設定
+              textColor: Colors.white, // 文字色を白に設定
+              borderRadius: 20.0, // 角丸を設定
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16), // 余白を調整
             ),
           ],
         ),

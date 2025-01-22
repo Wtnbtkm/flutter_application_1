@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/mock/screens/detail_screen.dart';
 import 'package:flutter_application_1/mock/screens/settings_screen.dart';
 import 'package:flutter_application_1/mock/screens/Next_screen.dart';
+import 'package:flutter_application_1/mock/screens/launch_screen.dart';
 
+// ホーム画面
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
@@ -17,6 +19,15 @@ class HomeScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text('ホーム画面です。'),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LaunchScreen()),
+                );
+              },
+              child: const Text('起動画面へ'),
+            ),
             ElevatedButton(
               onPressed: () {
                 Navigator.push(
