@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "286709857353",
+    "project_id": "fluttermock-firebase",
+    "storage_bucket": "fluttermock-firebase.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:286709857353:android:e8df1d5724d2bb54a85398",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkt9PwHWZly2GQazZw4R-SRzWTOS0Mgl8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
