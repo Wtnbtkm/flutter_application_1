@@ -1,1 +1,41 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"fluttermock-firebase","appId":"1:286709857353:android:e8df1d5724d2bb54a85398","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"fluttermock-firebase","configurations":{"android":"1:286709857353:android:e8df1d5724d2bb54a85398","ios":"1:286709857353:ios:842e69400946a1d4a85398","macos":"1:286709857353:ios:842e69400946a1d4a85398","web":"1:286709857353:web:855d14ddb1c7f6cea85398","windows":"1:286709857353:web:4e17a377a938e375a85398"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "fluttermock-firebase",
+          "appId": "1:286709857353:android:e8df1d5724d2bb54a85398",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "fluttermock-firebase",
+          "configurations": {
+            "android": "1:286709857353:android:e8df1d5724d2bb54a85398",
+            "ios": "1:286709857353:ios:842e69400946a1d4a85398",
+            "macos": "1:286709857353:ios:842e69400946a1d4a85398",
+            "web": "1:286709857353:web:855d14ddb1c7f6cea85398",
+            "windows": "1:286709857353:web:4e17a377a938e375a85398"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true
+    },
+    "singleProjectMode": true
+  }
+}
