@@ -1,40 +1,87 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/mock/screens/home_screen.dart'; // HomeScreen のインポート
-import 'package:flutter_application_1/mock/widgets/custom_button.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_1/mock/screens/home_screen.dart';
 
-// 詳細画面
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  String _email = '';
+  String _password = '';
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ログイン画面'),
-      ),
-      body: Center(
+      appBar: AppBar(title: const Text('ログイン画面')),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'ログイン画面',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+            Text('ログイン画面', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 20),
-            CustomButton(
-              text: 'ホームへ戻る',
-              onPressed: () {
-                // Navigatorを使ってHomeScreenに遷移
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HomeScreen()),
-                  (route) => false, // これにより全ての既存ルートを破棄
+
+            TextFormField(
+              decoration: const InputDecoration(labelText: 'メールアドレス'),
+              onChanged: (value) => setState(() => _email = value),
+            ),
+            TextFormField(
+              decoration: const InputDecoration(labelText: 'パスワード'),
+              obscureText: true,
+              onChanged: (value) => setState(() => _password = value),
+            ),
+
+            const SizedBox(height: 20),
+
+            ElevatedButton(
+              child: const Text('ログイン'),
+              onPressed: () async {
+                try {
+                  await _auth.signInWithEmailAndPassword(
+                    email: _email,
+                    password: _password,
+                  );
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('ログイン失敗: ${e.toString()}')),
+                  );
+                }
+              },
+            ),
+
+            ElevatedButton(
+              child: const Text('パスワードリセット'),
+              onPressed: () async {
+                try {
+                  await _auth.sendPasswordResetEmail(email: _email);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('リセットメールを送信しました')),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('エラー: ${e.toString()}')),
+                  );
+                }
+              },
+            ),
+
+            ElevatedButton(
+              child: const Text('ログアウト'),
+              onPressed: () async {
+                await _auth.signOut();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('ログアウトしました')),
                 );
               },
-              backgroundColor: Colors.green, // 背景色をオレンジに設定
-              textColor: Colors.white, // 文字色を白に設定
-              borderRadius: 20.0, // 角丸を設定
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16), // 余白を調整
             ),
           ],
         ),

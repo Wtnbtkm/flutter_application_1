@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/mock/screens/detail_screen.dart';
+import 'package:flutter_application_1/mock/screens/GameState_Screen.dart';
+import 'package:flutter_application_1/mock/screens/RoomCreation_Screen.dart';
+import 'package:flutter_application_1/mock/screens/problemlist_screen.dart';
+import 'package:flutter_application_1/mock/screens/player_registration_screen.dart';
 import 'package:flutter_application_1/mock/screens/settings_screen.dart';
-import 'package:flutter_application_1/mock/screens/Next_screen.dart';
 import 'package:flutter_application_1/mock/screens/launch_screen.dart';
 import 'package:flutter_application_1/mock/screens/login_screen.dart';
 
@@ -33,19 +35,10 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const NextScreen()),
+                  MaterialPageRoute(builder: (context) => const ProblemListScreen()),
                 );
               },
-              child: const Text('次の画面へ'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const DetailScreen()),
-                );
-              },
-              child: const Text('詳細画面へ'),
+              child: const Text('問題一覧へ'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -66,6 +59,33 @@ class HomeScreen extends StatelessWidget {
                 );
               },
               child: const Text('ログイン画面へ'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PlayerRegistrationScreen()),
+                );
+              },
+              child: const Text('ゲーム管理画面へ'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const RoomCreationScreen()),
+                );
+              },
+              child: const Text('ゲーム管理画面へ'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const GameStateScreen()),
+                );
+              },
+              child: const Text('ゲーム管理画面へ'),
             ),
           ],
         ),

@@ -111,7 +111,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       // 成功時にLaunchScreenへ遷移
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const LaunchScreen()),
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
                       );
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -125,36 +125,25 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: const Text('ログイン'),
                 onPressed: () async {
                   try {
-                    // メール/パスワードでログイン
                     final User? user = (await FirebaseAuth.instance
                             .signInWithEmailAndPassword(
                                 email: _email, password: _password))
                         .user;
-                    if (user != null)
+                    if (user != null) {
                       print("ログインしました ${user.email} , ${user.uid}");
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        MaterialPageRoute(builder: (context) => const LaunchScreen()),
                       );
+                    }
                   } catch (e) {
                     print(e);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("ログインに失敗しました: ${e.toString()}")),
+                    );
                   }
                 },
               ),
-              // 5行目 パスワードリセット登録ボタン
-              ElevatedButton(
-                  child: const Text('パスワードリセット'),
-                  onPressed: () async {
-                    try {
-                      await FirebaseAuth.instance
-                          .sendPasswordResetEmail(email: _email);
-                      print("パスワードリセット用のメールを送信しました");
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("エラーが発生しました: ${e.toString()}")),
-                      );
-                    }
-                  }),
             ],
           ),
         ),
