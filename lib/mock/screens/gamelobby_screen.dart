@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+//ゲームの待機画面
 class GameLobbyScreen extends StatelessWidget {
   final String problemTitle;
   final String roomId;
@@ -67,7 +67,7 @@ class GameLobbyScreen extends StatelessWidget {
                 ElevatedButton(
                   onPressed: remaining == 0
                       ? () {
-                          // ゲーム開始処理（未実装）
+                          
                         }
                       : null,
                   child: const Text('ゲーム開始'),

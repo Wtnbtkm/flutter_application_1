@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/mock/screens/gamelobby_screen.dart';
-
+//ルームの作成画面
 class RoomCreationScreen extends StatefulWidget {
   final String problemTitle;
-  const RoomCreationScreen({Key? key, required this.problemTitle}) : super(key: key);
+  final int requiredPlayers;
+
+  const RoomCreationScreen
+  ({Key? key,
+    required this.problemTitle,
+    required this.requiredPlayers,
+  }) : super(key: key);
 
   @override
   State<RoomCreationScreen> createState() => _RoomCreationScreenState();
@@ -57,7 +63,7 @@ class _RoomCreationScreenState extends State<RoomCreationScreen> {
       'hostName': hostName,
       'problemTitle': widget.problemTitle,
       'players': [hostName], // 最初のプレイヤー（ホスト）を追加
-      'requiredPlayers': 6,
+      'requiredPlayers': widget.requiredPlayers,
       'createdAt': Timestamp.now(),
     });
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/mock/screens/room_choice_screen.dart';
 import 'package:flutter_application_1/mock/screens/home_screen.dart';
 import 'package:flutter_application_1/mock/widgets/custom_button.dart';
-//参加人数と問題
+//参加人数と問題一覧
 class ProblemListScreen extends StatelessWidget {
   const ProblemListScreen({Key? key}) : super(key: key);
 

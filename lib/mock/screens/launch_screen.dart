@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/mock/screens/home_screen.dart';
 import 'package:flutter_application_1/mock/widgets/custom_button.dart';
-
+//起動画面
 class LaunchScreen extends StatelessWidget {
   const LaunchScreen({Key? key}) : super(key: key);
 
