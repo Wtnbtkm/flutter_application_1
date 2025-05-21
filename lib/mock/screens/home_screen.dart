@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/mock/screens/GameState_Screen.dart';
-import 'package:flutter_application_1/mock/screens/RoomCreation_Screen.dart';
-import 'package:flutter_application_1/mock/screens/problemlist_screen.dart';
+import 'package:flutter_application_1/mock/screens/problem_list_screen.dart';
 import 'package:flutter_application_1/mock/screens/player_registration_screen.dart';
 import 'package:flutter_application_1/mock/screens/settings_screen.dart';
 import 'package:flutter_application_1/mock/screens/launch_screen.dart';
@@ -67,16 +66,7 @@ class HomeScreen extends StatelessWidget {
                   MaterialPageRoute(builder: (context) => const PlayerRegistrationScreen()),
                 );
               },
-              child: const Text('ゲーム管理画面へ'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const RoomCreationScreen()),
-                );
-              },
-              child: const Text('ゲーム管理画面へ'),
+              child: const Text('プレイヤー名の登録'),
             ),
             ElevatedButton(
               onPressed: () {
