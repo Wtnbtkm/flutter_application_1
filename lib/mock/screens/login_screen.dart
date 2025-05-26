@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_application_1/mock/screens/home_screen.dart';
+import 'package:flutter_application_1/mock/screens/launch_screen.dart';
 // ログイン画面
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   );
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                    MaterialPageRoute(builder: (context) => const LaunchScreen()),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
