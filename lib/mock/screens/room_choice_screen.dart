@@ -1,64 +1,67 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_1/mock/screens/gamelobby_screen.dart';
+import 'package:flutter_application_1/mock/screens/room_creation_screen.dart'; // ルーム作成画面
+import 'package:flutter_application_1/mock/screens/room_join_screen.dart';   // ルーム参加画面
 
+//ルームの選択画面
 class RoomChoiceScreen extends StatelessWidget {
   final String problemTitle;
   final int requiredPlayers;
+  final String problemId;
 
   const RoomChoiceScreen({
     Key? key,
     required this.problemTitle,
     required this.requiredPlayers,
+    required this.problemId,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final TextEditingController roomNameController = TextEditingController();
-    final TextEditingController hostIdController = TextEditingController();
-
     return Scaffold(
-      appBar: AppBar(title: const Text('ルーム作成')),
+      appBar: AppBar(title: const Text('ルーム選択')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: roomNameController,
-              decoration: const InputDecoration(labelText: 'ルーム名'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: hostIdController,
-              decoration: const InputDecoration(labelText: 'ホストID'),
-            ),
             const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () async {
-                final roomName = roomNameController.text.trim();
-                final hostId = hostIdController.text.trim();
-                if (roomName.isEmpty || hostId.isEmpty) return;
-
-                final newRoomRef = FirebaseFirestore.instance.collection('rooms').doc();
-                await newRoomRef.set({
-                  'roomName': roomName,
-                  'hostId': hostId,
-                  'players': [hostId],
-                  'requiredPlayers': requiredPlayers,
-                  'problemTitle': problemTitle,
-                });
-
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GameLobbyScreen(
-                      problemTitle: problemTitle,
-                      roomId: newRoomRef.id,
-                    ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RoomCreationScreen(
+                            problemTitle: problemTitle,
+                            requiredPlayers: requiredPlayers,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('ルームを作成'),
                   ),
-                );
-              },
-              child: const Text('ルームを作成'),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RoomJoinScreen(
+                            problemTitle: problemTitle,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('ルームに参加'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
