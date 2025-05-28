@@ -53,26 +53,30 @@ class _RoomJoinScreenState extends State<RoomJoinScreen> {
       return;
     }
 
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
     String displayName;
-
-    final data = userDoc.data();
-    final dynamic rawName = data?['displayName'];
-    if (rawName != null && rawName is String && rawName.trim().isNotEmpty) {
-      displayName = rawName.trim();
+    final playerDoc = await FirebaseFirestore.instance.collection('players').doc(user.uid).get();
+    if (playerDoc.exists && playerDoc.data()?['playerName'] != null && (playerDoc.data()?['playerName'] as String).trim().isNotEmpty) {
+      displayName = playerDoc.data()?['playerName'];
     } else {
-      int maxNumber = 1;
-      final regex = RegExp(r'名無しの参加者(\d+)');
-      for (var p in players) {
-        final match = regex.firstMatch(p);
-        if (match != null) {
-          final num = int.tryParse(match.group(1) ?? '');
-          if (num != null && num >= maxNumber) {
-            maxNumber = num + 1;
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final data = userDoc.data();
+      final dynamic rawName = data?['displayName'];
+      if (rawName != null && rawName is String && rawName.trim().isNotEmpty) {
+        displayName = rawName.trim();
+      } else {
+        int maxNumber = 1;
+        final regex = RegExp(r'名無しの参加者(\d+)');
+        for (var p in players) {
+          final match = regex.firstMatch(p);
+          if (match != null) {
+            final num = int.tryParse(match.group(1) ?? '');
+            if (num != null && num >= maxNumber) {
+              maxNumber = num + 1;
+            }
           }
         }
+        displayName = '名無しの参加者$maxNumber';
       }
-      displayName = '名無しの参加者$maxNumber';
     }
 
     if (players.contains(displayName)) {

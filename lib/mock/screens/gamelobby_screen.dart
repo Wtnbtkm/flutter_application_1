@@ -15,6 +15,7 @@ class GameLobbyScreen extends StatefulWidget {
 class _GameLobbyScreenState extends State<GameLobbyScreen> {
   String? displayName;
   bool isReady = false;
+  bool navigatedToCharacterSheet = false;
 
   @override
   void initState() {
@@ -25,43 +26,55 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   Future<void> _loadDisplayName() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    final name = userDoc.data()?['displayName'] ?? '名無しの参加者';
+    // 1. プレイヤー名（playersコレクション）優先、なければusersコレクションのdisplayName
+    String? name;
+    final playerDoc = await FirebaseFirestore.instance.collection('players').doc(user.uid).get();
+    if (playerDoc.exists && playerDoc.data()?['playerName'] != null && (playerDoc.data()?['playerName'] as String).trim().isNotEmpty) {
+      name = playerDoc.data()?['playerName'];
+    } else {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      name = userDoc.data()?['displayName'] ?? '名無しの参加者';
+    }
     setState(() {
       displayName = name;
     });
   }
 
-  Future<void> _toggleReady() async {
+  Future<void> _toggleReady(List readyPlayers) async {
     if (displayName == null) return;
 
     final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomId);
-    final doc = await roomRef.get();
-    List readyPlayers = doc.data()?['readyPlayers'] ?? [];
 
-    if (isReady) {
-      readyPlayers.remove(displayName);
-    } else {
-      readyPlayers.add(displayName);
-    }
-
-    await roomRef.update({'readyPlayers': readyPlayers});
     setState(() {
-      isReady = !isReady;
+      isReady = !isReady; // 先にUI反映
     });
+
+    if (!isReady) {
+      // 準備解除
+      await roomRef.update({'readyPlayers': FieldValue.arrayRemove([displayName])});
+    } else {
+      // 準備完了
+      await roomRef.update({'readyPlayers': FieldValue.arrayUnion([displayName])});
+    }
   }
 
-  void _startGameIfReady(Map<String, dynamic> data) {
-    final players = data['players'] ?? [];
-    final readyPlayers = data['readyPlayers'] ?? [];
-    final requiredPlayers = data['requiredPlayers'];
+  Future<void> _startGame(Map<String, dynamic> data) async {
+    final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomId);
+    await roomRef.update({'gameStarted': true});
+    _navigateToCharacterSheet();
+  }
 
-    final isHost = data['hostUid'] == FirebaseAuth.instance.currentUser?.uid;
-
-    if (isHost && players.length == requiredPlayers && readyPlayers.length == requiredPlayers) {
-      // ゲーム開始画面に遷移
-      // Navigator.push(...)
-    }
+  void _navigateToCharacterSheet() {
+    if (navigatedToCharacterSheet) return;
+    navigatedToCharacterSheet = true;
+    Navigator.pushReplacementNamed(
+      context,
+      '/characterSheet',
+      arguments: {
+        'roomId': widget.roomId,
+        'playerUid': FirebaseAuth.instance.currentUser?.uid,
+      },
+    );
   }
 
   @override
@@ -79,6 +92,14 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
           final isHost = data['hostUid'] == FirebaseAuth.instance.currentUser?.uid;
           final allReady = players.length == requiredPlayers && readyPlayers.length == requiredPlayers;
+
+          // 自分のisReady状態をFirestoreから判断
+          final myReady = displayName != null && readyPlayers.contains(displayName);
+
+          // gameStartedで全員遷移
+          if (data['gameStarted'] == true) {
+            Future.microtask(() => _navigateToCharacterSheet());
+          }
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
@@ -107,7 +128,6 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // プレイヤーリストは高さを制限しつつスクロール可
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
@@ -120,8 +140,16 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                       itemCount: players.length,
                       itemBuilder: (context, index) {
                         final p = players[index];
+                        final isMe = (p == displayName);
                         return ListTile(
-                          title: Text(p),
+                          title: Text(
+                            p,
+                            style: isMe
+                                ? const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue)
+                                : null,
+                          ),
                           trailing: readyPlayers.contains(p)
                               ? const Icon(Icons.check_circle, color: Colors.green)
                               : const Icon(Icons.hourglass_empty),
@@ -131,24 +159,23 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // ボタン類をまとめて下部に
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: _toggleReady,
+                        onPressed: () => _toggleReady(readyPlayers),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: Text(isReady ? '準備を解除' : '準備完了'),
+                        child: Text(myReady ? '準備を解除' : '準備完了'),
                       ),
                     ),
                     const SizedBox(width: 16),
                     if (isHost)
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: allReady ? () => _startGameIfReady(data) : null,
+                          onPressed: allReady ? () => _startGame(data) : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: allReady ? Theme.of(context).primaryColor : Colors.grey,
                             padding: const EdgeInsets.symmetric(vertical: 16),
