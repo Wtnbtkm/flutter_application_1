@@ -20,12 +20,11 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
   @override
-    Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
@@ -37,11 +36,9 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
 // アカウント登録処理(メールアドレス&パスワード)
 Future createAccount(String email, String passWord) async {
   FirebaseAuth auth = FirebaseAuth.instance;
-  // アカウント登録
   await auth.createUserWithEmailAndPassword(
     email: email,
     password: passWord,
@@ -58,7 +55,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  // 入力したメールアドレス・パスワード
   String _email = '';
   String _password = '';
 
@@ -66,85 +62,103 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              // 1行目 メールアドレス入力用テキストフィールド
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'メールアドレス'),
-                onChanged: (String value) {
-                  setState(() {
-                    _email = value;
-                  });
-                },
-              ),
-              // 2行目 パスワード入力用テキストフィールド
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'パスワード'),
-                obscureText: true,
-                onChanged: (String value) {
-                  setState(() {
-                    _password = value;
-                  });
-                },
-              ),
-              // 3行目 ユーザ登録ボタン
-              ElevatedButton(
-                child: const Text('ユーザ登録'),
-                onPressed: () async {
-                  try {
-                    final User? user = (await FirebaseAuth.instance
-                            .createUserWithEmailAndPassword(
-                                email: _email, password: _password))
-                        .user;
-                    if (user != null)
-                      print("ユーザ登録しました ${user.email} , ${user.uid}");
-                      
-                      // Firestoreにユーザー情報を保存 nullの可能性も考慮
-                      await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
-                        'email': user.email!,
-                        'createdAt': Timestamp.now(),
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400), // 横幅を制限
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const SizedBox(height: 24),
+                  Text(
+                    widget.title,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'メールアドレス', border: OutlineInputBorder()),
+                    onChanged: (String value) {
+                      setState(() {
+                        _email = value;
                       });
-
-                      // 成功時にLaunchScreenへ遷移
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("エラー: ${e.toString()}")),
-                    );
-                  }
-                },
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'パスワード', border: OutlineInputBorder()),
+                    obscureText: true,
+                    onChanged: (String value) {
+                      setState(() {
+                        _password = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      child: const Text('ユーザ登録'),
+                      onPressed: () async {
+                        try {
+                          final User? user = (await FirebaseAuth.instance
+                                  .createUserWithEmailAndPassword(
+                                      email: _email, password: _password))
+                              .user;
+                          if (user != null) {
+                            print("ユーザ登録しました ${user.email} , ${user.uid}");
+                            await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                              'email': user.email!,
+                              'createdAt': Timestamp.now(),
+                            });
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const LoginScreen()),
+                            );
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("エラー: ${e.toString()}")),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      child: const Text('ログイン'),
+                      onPressed: () async {
+                        try {
+                          final User? user = (await FirebaseAuth.instance
+                                  .signInWithEmailAndPassword(
+                                      email: _email, password: _password))
+                              .user;
+                          if (user != null) {
+                            print("ログインしました ${user.email} , ${user.uid}");
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const LaunchScreen()),
+                            );
+                          }
+                        } catch (e) {
+                          print(e);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("ログインに失敗しました: ${e.toString()}")),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-              // 4行目 ログインボタン
-              ElevatedButton(
-                child: const Text('ログイン'),
-                onPressed: () async {
-                  try {
-                    final User? user = (await FirebaseAuth.instance
-                            .signInWithEmailAndPassword(
-                                email: _email, password: _password))
-                        .user;
-                    if (user != null) {
-                      print("ログインしました ${user.email} , ${user.uid}");
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LaunchScreen()),
-                      );
-                    }
-                  } catch (e) {
-                    print(e);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("ログインに失敗しました: ${e.toString()}")),
-                    );
-                  }
-                },
-              ),
-            ],
+            ),
           ),
         ),
       ),
