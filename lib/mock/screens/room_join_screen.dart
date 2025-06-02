@@ -37,6 +37,14 @@ class _RoomJoinScreenState extends State<RoomJoinScreen> {
     final roomData = docSnap.data();
     final List<dynamic> players = roomData?['players'] ?? [];
     final int requiredPlayers = roomData?['requiredPlayers'] ?? 6;
+    final String? problemId = roomData?['problemId'];
+
+    if (problemId == null || problemId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('このルームには問題IDがありません。')),
+      );
+      return;
+    }
 
     if (players.length >= requiredPlayers) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -55,15 +63,22 @@ class _RoomJoinScreenState extends State<RoomJoinScreen> {
 
     String displayName;
     final playerDoc = await FirebaseFirestore.instance.collection('players').doc(user.uid).get();
-    if (playerDoc.exists && playerDoc.data()?['playerName'] != null && (playerDoc.data()?['playerName'] as String).trim().isNotEmpty) {
+    if (playerDoc.exists &&
+        playerDoc.data()?['playerName'] != null &&
+        (playerDoc.data()?['playerName'] as String).trim().isNotEmpty &&
+        !players.contains(playerDoc.data()?['playerName'])) {
       displayName = playerDoc.data()?['playerName'];
     } else {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final data = userDoc.data();
       final dynamic rawName = data?['displayName'];
-      if (rawName != null && rawName is String && rawName.trim().isNotEmpty) {
+      if (rawName != null &&
+          rawName is String &&
+          rawName.trim().isNotEmpty &&
+          !players.contains(rawName.trim())) {
         displayName = rawName.trim();
       } else {
+        // プレイヤー名が重複しないように生成
         int maxNumber = 1;
         final regex = RegExp(r'名無しの参加者(\d+)');
         for (var p in players) {
@@ -89,6 +104,9 @@ class _RoomJoinScreenState extends State<RoomJoinScreen> {
     await roomDoc.update({
       'players': FieldValue.arrayUnion([displayName]),
     });
+    await FirebaseFirestore.instance.collection('players').doc(user.uid).set({
+      'playerName': displayName,
+    });
 
     Navigator.push(
       context,
@@ -96,6 +114,7 @@ class _RoomJoinScreenState extends State<RoomJoinScreen> {
         builder: (context) => GameLobbyScreen(
           problemTitle: widget.problemTitle,
           roomId: roomId,
+          problemId: problemId,
         ),
       ),
     );

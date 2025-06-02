@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_1/mock/screens/story_intro_screen.dart';
 
 class GameLobbyScreen extends StatefulWidget {
   final String roomId;
   final String problemTitle;
+  final String problemId;
 
-  const GameLobbyScreen({Key? key, required this.roomId, required this.problemTitle}) : super(key: key);
+  const GameLobbyScreen({
+    Key? key,
+    required this.roomId,
+    required this.problemTitle,
+    required this.problemId,
+  }) : super(key: key);
 
   @override
   State<GameLobbyScreen> createState() => _GameLobbyScreenState();
@@ -14,8 +21,7 @@ class GameLobbyScreen extends StatefulWidget {
 
 class _GameLobbyScreenState extends State<GameLobbyScreen> {
   String? displayName;
-  bool isReady = false;
-  bool navigatedToCharacterSheet = false;
+  bool navigatedToStoryIntro = false;
 
   @override
   void initState() {
@@ -26,34 +32,26 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   Future<void> _loadDisplayName() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    // 1. プレイヤー名（playersコレクション）優先、なければusersコレクションのdisplayName
-    String? name;
     final playerDoc = await FirebaseFirestore.instance.collection('players').doc(user.uid).get();
     if (playerDoc.exists && playerDoc.data()?['playerName'] != null && (playerDoc.data()?['playerName'] as String).trim().isNotEmpty) {
-      name = playerDoc.data()?['playerName'];
+      setState(() {
+        displayName = playerDoc.data()?['playerName'];
+      });
     } else {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      name = userDoc.data()?['displayName'] ?? '名無しの参加者';
+      setState(() {
+        displayName = userDoc.data()?['displayName'] ?? '名無しの参加者';
+      });
     }
-    setState(() {
-      displayName = name;
-    });
   }
 
   Future<void> _toggleReady(List readyPlayers) async {
     if (displayName == null) return;
-
     final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomId);
-
-    setState(() {
-      isReady = !isReady; // 先にUI反映
-    });
-
-    if (!isReady) {
-      // 準備解除
+    final isReady = readyPlayers.contains(displayName);
+    if (isReady) {
       await roomRef.update({'readyPlayers': FieldValue.arrayRemove([displayName])});
     } else {
-      // 準備完了
       await roomRef.update({'readyPlayers': FieldValue.arrayUnion([displayName])});
     }
   }
@@ -61,19 +59,18 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   Future<void> _startGame(Map<String, dynamic> data) async {
     final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomId);
     await roomRef.update({'gameStarted': true});
-    _navigateToCharacterSheet();
+    _navigateToStoryIntro();
   }
 
-  void _navigateToCharacterSheet() {
-    if (navigatedToCharacterSheet) return;
-    navigatedToCharacterSheet = true;
-    Navigator.pushReplacementNamed(
+  void _navigateToStoryIntro() {
+    if (navigatedToStoryIntro) return;
+    navigatedToStoryIntro = true;
+    Navigator.pushReplacement(
       context,
-      '/characterSheet',
-      arguments: {
-        'roomId': widget.roomId,
-        'playerUid': FirebaseAuth.instance.currentUser?.uid,
-      },
+      MaterialPageRoute(
+        builder: (context) => StoryIntroScreen(problemId: widget.problemId),
+        settings: RouteSettings(arguments: widget.roomId),
+      ),
     );
   }
 
@@ -89,16 +86,20 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
           final players = List<String>.from(data['players'] ?? []);
           final readyPlayers = List<String>.from(data['readyPlayers'] ?? []);
           final requiredPlayers = data['requiredPlayers'] ?? 6;
-
           final isHost = data['hostUid'] == FirebaseAuth.instance.currentUser?.uid;
           final allReady = players.length == requiredPlayers && readyPlayers.length == requiredPlayers;
-
-          // 自分のisReady状態をFirestoreから判断
           final myReady = displayName != null && readyPlayers.contains(displayName);
+
+          // displayNameがplayers内にいない場合、警告を表示
+          if (displayName != null && !players.contains(displayName)) {
+            return Center(
+              child: Text('あなたのプレイヤー名（$displayName）がルームに存在しません。再参加してください。'),
+            );
+          }
 
           // gameStartedで全員遷移
           if (data['gameStarted'] == true) {
-            Future.microtask(() => _navigateToCharacterSheet());
+            Future.microtask(() => _navigateToStoryIntro());
           }
 
           return Padding(
@@ -162,6 +163,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // 準備完了ボタンは全員に表示
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () => _toggleReady(readyPlayers),
@@ -172,6 +174,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                       ),
                     ),
                     const SizedBox(width: 16),
+                    // ゲーム開始ボタンはホストのみ表示
                     if (isHost)
                       Expanded(
                         child: ElevatedButton(

@@ -6,11 +6,13 @@ import 'package:flutter_application_1/mock/screens/gamelobby_screen.dart';
 // ルームの作成画面
 class RoomCreationScreen extends StatefulWidget {
   final String problemTitle;
+  final String problemId;
   final int requiredPlayers;
 
   const RoomCreationScreen({
     Key? key,
     required this.problemTitle,
+    required this.problemId, 
     required this.requiredPlayers,
   }) : super(key: key);
 
@@ -62,10 +64,16 @@ class _RoomCreationScreenState extends State<RoomCreationScreen> {
         'hostUid': user.uid,
         'hostName': hostName,
         'problemTitle': widget.problemTitle,
+        'problemId': widget.problemId, // ← 追加
         'players': [hostName],
         'requiredPlayers': widget.requiredPlayers,
         'readyPlayers': [],
         'createdAt': Timestamp.now(),
+      });
+
+       // ここでホストのplayerNameをplayersコレクションにも保存する
+      await FirebaseFirestore.instance.collection('players').doc(user.uid).set({
+        'playerName': hostName,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,6 +89,7 @@ class _RoomCreationScreenState extends State<RoomCreationScreen> {
           builder: (context) => GameLobbyScreen(
             roomId: roomId,
             problemTitle: widget.problemTitle,
+            problemId: widget.problemId, // ← ここを追加
           ),
         ),
       );

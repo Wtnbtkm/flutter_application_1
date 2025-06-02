@@ -37,7 +37,7 @@ class RoomChoiceScreen extends StatelessWidget {
                         MaterialPageRoute(
                           builder: (context) => RoomCreationScreen(
                             problemTitle: problemTitle,
-                            requiredPlayers: requiredPlayers,
+                            requiredPlayers: requiredPlayers,problemId: problemId,
                           ),
                         ),
                       );

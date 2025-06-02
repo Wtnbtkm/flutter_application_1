@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/mock/screens/room_choice_screen.dart';
 import 'package:flutter_application_1/mock/screens/home_screen.dart';
 import 'package:flutter_application_1/mock/widgets/custom_button.dart';
-//参加人数と問題一覧
+
 class ProblemListScreen extends StatelessWidget {
   const ProblemListScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final List<Map<String, dynamic>> problems = [
-      {'title': '影の中の告白', 'requiredPlayers': 5},
-      {'title': '仮タイトル2', 'requiredPlayers': 4},
-      {'title': '仮タイトル3', 'requiredPlayers': 3},
-      {'title': '仮タイトル3', 'requiredPlayers': 2},
+      {'id': 'kage_no_naka_no_kokuhaku', 'title': '影の中の告白', 'requiredPlayers': 5},
+      {'id': 'provisional2', 'title': '仮タイトル2', 'requiredPlayers': 4},
+      {'id': 'provisional3', 'title': '仮タイトル3', 'requiredPlayers': 3},
+      {'id': 'provisional4', 'title': '仮タイトル4', 'requiredPlayers': 2},
     ];
 
     return Scaffold(
@@ -45,6 +45,7 @@ class ProblemListScreen extends StatelessWidget {
                             builder: (context) => RoomChoiceScreen(
                               problemTitle: problems[index]['title'],
                               requiredPlayers: problems[index]['requiredPlayers'],
+                              problemId: problems[index]['id'],  // ← new!
                             ),
                           ),
                         );
@@ -67,8 +68,7 @@ class ProblemListScreen extends StatelessWidget {
               backgroundColor: Colors.green,
               textColor: Colors.white,
               borderRadius: 20.0,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
             ),
           ],
         ),

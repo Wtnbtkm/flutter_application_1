@@ -17,67 +17,86 @@ class HomeScreen extends StatelessWidget {
         title: const Text('ホーム画面'),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('ホーム画面です。'),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LaunchScreen()),
-                );
-              },
-              child: const Text('起動画面へ'),
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // タイトル
+                  Text(
+                    'ホーム画面です',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 36),
+                  // ボタン郡
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LaunchScreen()),
+                      );
+                    },
+                    child: const Text('起動画面へ'),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ProblemListScreen()),
+                      );
+                    },
+                    child: const Text('問題一覧へ'),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                      );
+                    },
+                    child: const Text('設定画面へ'),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      );
+                    },
+                    child: const Text('ログイン画面へ'),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PlayerRegistrationScreen()),
+                      );
+                    },
+                    child: const Text('プレイヤー名の登録'),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const GameStateScreen()),
+                      );
+                    },
+                    child: const Text('ゲーム管理画面へ'),
+                  ),
+                ],
+              ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProblemListScreen()),
-                );
-              },
-              child: const Text('問題一覧へ'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const SettingsScreen()),
-                );
-              },
-              child: const Text('設定画面へ'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const LoginScreen()),
-                );
-              },
-              child: const Text('ログイン画面へ'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PlayerRegistrationScreen()),
-                );
-              },
-              child: const Text('プレイヤー名の登録'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const GameStateScreen()),
-                );
-              },
-              child: const Text('ゲーム管理画面へ'),
-            ),
-          ],
+          ),
         ),
       ),
     );
