@@ -1,85 +1,83 @@
-import 'dart:math';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class StoryIntroScreen extends StatelessWidget {
-  StoryIntroScreen({super.key});
+import 'package:flutter_application_1/mock/screens/charactersheet_screen.dart'; 
 
-  // 🔸 配役マスターデータ（好きなように追加・編集可）
-  final List<Map<String, dynamic>> characterTemplates = [
-    {
-      'role': 'エミリー・ホワイト',
-      'description': ['表の顔 華やかな社交界の顔、ジャーナリスト','裏の顔アリスに過去の不正取材を知られ、脅されていた'],
-      'evidence': ['ポケットから敗れた取材メモ（「彼女は私の秘密を・・」とある）', '殺害時刻、彼女は人前にいたとされるが証言は曖昧','所特品に劇薬の小瓶','エミリーのPCに「アリス 暴露 記事準備中」というファイルがある'],
-      'winConditions': ['冤罪を晴らし、真犯人を特定する', '真犯人として逃げ切る'],
-    },
-    {
-      'role': '主催者の妹',
-      'description': '被害者アリスの妹。事件に関して何か知っている様子。',
-      'evidence': ['姉の遺言を持っていた', '不審な時間に部屋の外にいた'],
-      'winConditions': ['自分の無実を証明する'],
-    },
-    {
-      'role': 'ホテル従業員',
-      'description': '事件当日のサービスを担当していたスタッフ。状況をよく見ていたが、何かを隠している？',
-      'evidence': ['カメラの死角を指摘', '清掃記録と矛盾あり'],
-      'winConditions': ['真相を明かさずに生き延びる'],
-    },
-    {
-      'role': 'ジャーナリスト',
-      'description': '真実を追い求める記者。スクープを狙って事件に首を突っ込む。',
-      'evidence': ['密談を盗み聞きしていた', '事件前に取材していた'],
-      'winConditions': ['犯人の動機を暴く'],
-    },
-  ];
+class StoryIntroScreen extends StatefulWidget {
+  final String problemId;
+  const StoryIntroScreen({Key? key, required this.problemId}) : super(key: key);
 
-  // 🔸 配役を各プレイヤーに割り当てる処理
+  @override
+  State<StoryIntroScreen> createState() => _StoryIntroScreenState();
+}
+
+class _StoryIntroScreenState extends State<StoryIntroScreen> {
+  Map<String, dynamic>? problemData;
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadProblemData();
+  }
+
+  Future<void> loadProblemData() async {
+    final jsonString = await rootBundle.loadString('assets/problems/${widget.problemId}.json');
+    setState(() {
+      problemData = json.decode(jsonString);
+      loading = false;
+    });
+  }
+
   Future<void> assignCharactersToPlayers(String roomId) async {
+    if (problemData == null) return;
     final roomRef = FirebaseFirestore.instance.collection('rooms').doc(roomId);
+    // プレイヤーリスト取得（playersコレクション内に各uidドキュメントがある想定）
     final playersSnapshot = await roomRef.collection('players').get();
-
     final players = playersSnapshot.docs;
-    final availableTemplates = List<Map<String, dynamic>>.from(characterTemplates);
-    availableTemplates.shuffle(Random());
-
-    if (players.length > availableTemplates.length) {
+    final characterTemplates = problemData!['characters'] as List<dynamic>;
+    if (players.length > characterTemplates.length) {
       throw Exception('プレイヤー数が配役数を超えています。');
     }
-
+    final shuffled = List<Map<String, dynamic>>.from(characterTemplates)..shuffle();
     for (int i = 0; i < players.length; i++) {
-      final playerDoc = players[i];
-      final assignedRole = availableTemplates[i];
-
-      await roomRef.collection('players').doc(playerDoc.id).set({
-        'role': assignedRole['role'],
-        'description': assignedRole['description'],
-        'evidence': assignedRole['evidence'],
-        'winConditions': assignedRole['winConditions'],
+      await roomRef.collection('players').doc(players[i].id).set({
+        'role': shuffled[i]['role'],
+        'description': shuffled[i]['description'],
+        'evidence': shuffled[i]['evidence'],
+        'winConditions': shuffled[i]['winConditions'],
       }, SetOptions(merge: true));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 👇 Firebase Auth から現在のユーザーIDを取得
     final playerId = FirebaseAuth.instance.currentUser?.uid;
-    // 👇 実際の roomId はルーム作成時に保存されているものを受け取る必要があります
     final roomId = ModalRoute.of(context)?.settings.arguments as String?;
 
+    if (loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (problemData == null) {
+      return const Scaffold(
+        body: Center(child: Text('問題データ読み込み失敗')),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text("ゲーム開始")),
+      appBar: AppBar(title: Text(problemData!['title'] ?? '')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const Text(
-              '影の中の告白\n\n'
-              ' ロンドンの高級ホテルで行われる慈善イベントの夜。富豪の古参メンバーが集まり、地元の慈善事業を支援しています。\n'
-              'しかし、夜が進むにつれて、一人のメンバーが突然殺されます。\n'
-              ' イベントの最中、部屋の中でアリスが遺体として発見されます。部屋は内部から施錠されており、外からの侵入は考えにくい状況です。怪しい動きを見せるのは、ウィリアムとエミリーで、それぞれの証言には穴があります。ジョンは事件解決に執念を燃やし、レベッカは自分のホテルでの事件に動揺します。\n'
-              '事件の真相を暴くのは誰か、犯人として逃げ切るのは誰か？',
-              style: TextStyle(fontSize: 16),
+            Text(
+              problemData!['story'] ?? '',
+              style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
@@ -93,11 +91,29 @@ class StoryIntroScreen extends StatelessWidget {
 
                 try {
                   await assignCharactersToPlayers(roomId);
-                  Navigator.pushNamed(
+
+                  // ★ 直接画面遷移する場合はこちら
+                  Navigator.push(
                     context,
-                    '/characterSheet',
-                    arguments: {'roomId': roomId, 'playerId': playerId},
+                    MaterialPageRoute(
+                      builder: (context) => CharacterSheetScreen(
+                        roomId: roomId,
+                        playerUid: playerId,
+                        problemId: widget.problemId,
+                      ),
+                    ),
                   );
+
+                  // ★ ルート名遷移の場合は下記コメントアウトを利用
+                  // Navigator.pushNamed(
+                  //   context,
+                  //   '/characterSheet',
+                  //   arguments: {
+                  //     'roomId': roomId,
+                  //     'playerId': playerId,
+                  //     'problemId': widget.problemId,
+                  //   },
+                  // );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('配役失敗: $e')),

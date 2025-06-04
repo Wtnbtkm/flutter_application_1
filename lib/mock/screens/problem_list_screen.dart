@@ -9,7 +9,7 @@ class ProblemListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<Map<String, dynamic>> problems = [
-      {'id': 'kage_no_naka_no_kokuhaku', 'title': '影の中の告白', 'requiredPlayers': 5},
+      {'id': 'kage_no_naka_no_kokuhaku', 'title': '影の中の告白', 'requiredPlayers': 4},
       {'id': 'provisional2', 'title': '仮タイトル2', 'requiredPlayers': 4},
       {'id': 'provisional3', 'title': '仮タイトル3', 'requiredPlayers': 3},
       {'id': 'provisional4', 'title': '仮タイトル4', 'requiredPlayers': 2},
