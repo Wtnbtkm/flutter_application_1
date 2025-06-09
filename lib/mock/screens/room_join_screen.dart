@@ -61,7 +61,8 @@ class _RoomJoinScreenState extends State<RoomJoinScreen> {
       return;
     }
 
-    String displayName;
+    // ここから名無しの参加者1～のロジック
+    String displayName = '';
     final playerDoc = await FirebaseFirestore.instance.collection('players').doc(user.uid).get();
     if (playerDoc.exists &&
         playerDoc.data()?['playerName'] != null &&
@@ -69,44 +70,46 @@ class _RoomJoinScreenState extends State<RoomJoinScreen> {
         !players.contains(playerDoc.data()?['playerName'])) {
       displayName = playerDoc.data()?['playerName'];
     } else {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final data = userDoc.data();
-      final dynamic rawName = data?['displayName'];
-      if (rawName != null &&
-          rawName is String &&
-          rawName.trim().isNotEmpty &&
-          !players.contains(rawName.trim())) {
-        displayName = rawName.trim();
-      } else {
-        // プレイヤー名が重複しないように生成
-        int maxNumber = 1;
-        final regex = RegExp(r'名無しの参加者(\d+)');
-        for (var p in players) {
-          final match = regex.firstMatch(p);
-          if (match != null) {
-            final num = int.tryParse(match.group(1) ?? '');
-            if (num != null && num >= maxNumber) {
-              maxNumber = num + 1;
-            }
+      // ユーザーコレクションにもなければ名無しの参加者1から順に
+      int maxNumber = 1;
+      final regex = RegExp(r'名無しの参加者(\d+)$');
+      for (var uid in players) {
+        // 各UIDのplayerName取得
+        final subDoc = await FirebaseFirestore.instance
+            .collection('rooms')
+            .doc(roomId)
+            .collection('players')
+            .doc(uid)
+            .get();
+        final p = subDoc.data()?['playerName'] ?? '';
+        final match = regex.firstMatch(p);
+        if (match != null) {
+          final num = int.tryParse(match.group(1) ?? '');
+          if (num != null && num >= maxNumber) {
+            maxNumber = num + 1;
           }
         }
-        displayName = '名無しの参加者$maxNumber';
       }
+      displayName = '名無しの参加者$maxNumber';
     }
 
-    if (players.contains(displayName)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('同じ名前の参加者がすでにいます。もう一度お試しください。')),
-      );
-      return;
+    // UIDがすでにplayersにいる場合は再参加とみなす（重複チェック不要）
+    if (!players.contains(user.uid)) {
+      await roomDoc.update({
+        'players': FieldValue.arrayUnion([user.uid]),
+      });
     }
 
-    await roomDoc.update({
-      'players': FieldValue.arrayUnion([displayName]),
-    });
     await FirebaseFirestore.instance.collection('players').doc(user.uid).set({
       'playerName': displayName,
     });
+
+    await FirebaseFirestore.instance
+        .collection('rooms')
+        .doc(roomId)
+        .collection('players')
+        .doc(user.uid)
+        .set({'playerName': displayName});
 
     Navigator.push(
       context,

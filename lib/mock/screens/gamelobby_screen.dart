@@ -20,39 +20,43 @@ class GameLobbyScreen extends StatefulWidget {
 }
 
 class _GameLobbyScreenState extends State<GameLobbyScreen> {
-  String? displayName;
   bool navigatedToStoryIntro = false;
+  String? currentUid;
 
   @override
   void initState() {
     super.initState();
-    _loadDisplayName();
+    currentUid = FirebaseAuth.instance.currentUser?.uid;
   }
 
-  Future<void> _loadDisplayName() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final playerDoc = await FirebaseFirestore.instance.collection('players').doc(user.uid).get();
-    if (playerDoc.exists && playerDoc.data()?['playerName'] != null && (playerDoc.data()?['playerName'] as String).trim().isNotEmpty) {
-      setState(() {
-        displayName = playerDoc.data()?['playerName'];
-      });
-    } else {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      setState(() {
-        displayName = userDoc.data()?['displayName'] ?? '名無しの参加者';
-      });
+  Future<String> _getPlayerName(String uid) async {
+    // ルームサブコレクション優先で取得
+    final sub = await FirebaseFirestore.instance
+        .collection('rooms')
+        .doc(widget.roomId)
+        .collection('players')
+        .doc(uid)
+        .get();
+    if (sub.exists && sub.data()?['playerName'] != null) {
+      return sub.data()!['playerName'];
     }
+    // fallback: playersコレクション
+    final doc = await FirebaseFirestore.instance.collection('players').doc(uid).get();
+    if (doc.exists && doc.data()?['playerName'] != null) {
+      return doc.data()!['playerName'];
+    }
+    return '名無しの参加者';
   }
 
   Future<void> _toggleReady(List readyPlayers) async {
-    if (displayName == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
     final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomId);
-    final isReady = readyPlayers.contains(displayName);
+    final isReady = readyPlayers.contains(user.uid);
     if (isReady) {
-      await roomRef.update({'readyPlayers': FieldValue.arrayRemove([displayName])});
+      await roomRef.update({'readyPlayers': FieldValue.arrayRemove([user.uid])});
     } else {
-      await roomRef.update({'readyPlayers': FieldValue.arrayUnion([displayName])});
+      await roomRef.update({'readyPlayers': FieldValue.arrayUnion([user.uid])});
     }
   }
 
@@ -88,12 +92,12 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
           final requiredPlayers = data['requiredPlayers'] ?? 6;
           final isHost = data['hostUid'] == FirebaseAuth.instance.currentUser?.uid;
           final allReady = players.length == requiredPlayers && readyPlayers.length == requiredPlayers;
-          final myReady = displayName != null && readyPlayers.contains(displayName);
+          final myReady = currentUid != null && readyPlayers.contains(currentUid);
 
-          // displayNameがplayers内にいない場合、警告を表示
-          if (displayName != null && !players.contains(displayName)) {
+          // currentUidがplayers内にいない場合、警告を表示
+          if (currentUid != null && !players.contains(currentUid)) {
             return Center(
-              child: Text('あなたのプレイヤー名（$displayName）がルームに存在しません。再参加してください。'),
+              child: Text('あなたのアカウントがルームに存在しません。再参加してください。'),
             );
           }
 
@@ -130,33 +134,36 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                 ),
                 const SizedBox(height: 8),
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: ListView.builder(
-                      itemCount: players.length,
-                      itemBuilder: (context, index) {
-                        final p = players[index];
-                        final isMe = (p == displayName);
-                        return ListTile(
-                          title: Text(
-                            p,
-                            style: isMe
-                                ? const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue)
-                                : null,
-                          ),
-                          trailing: readyPlayers.contains(p)
-                              ? const Icon(Icons.check_circle, color: Colors.green)
-                              : const Icon(Icons.hourglass_empty),
-                        );
-                      },
-                    ),
+                  child: FutureBuilder<List<Map<String, String>>>(
+                    future: Future.wait(players.map((uid) async {
+                      final name = await _getPlayerName(uid);
+                      return {'uid': uid, 'name': name};
+                    }).toList()),
+                    builder: (context, snap) {
+                      if (!snap.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final playerInfo = snap.data!;
+                      return ListView.builder(
+                        itemCount: playerInfo.length,
+                        itemBuilder: (context, index) {
+                          final p = playerInfo[index]['uid']!;
+                          final name = playerInfo[index]['name']!;
+                          final isMe = (p == currentUid);
+                          return ListTile(
+                            title: Text(
+                              name,
+                              style: isMe
+                                  ? const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)
+                                  : null,
+                            ),
+                            trailing: readyPlayers.contains(p)
+                                ? const Icon(Icons.check_circle, color: Colors.green)
+                                : const Icon(Icons.hourglass_empty),
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 16),

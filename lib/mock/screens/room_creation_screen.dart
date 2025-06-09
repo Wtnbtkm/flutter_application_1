@@ -64,17 +64,24 @@ class _RoomCreationScreenState extends State<RoomCreationScreen> {
         'hostUid': user.uid,
         'hostName': hostName,
         'problemTitle': widget.problemTitle,
-        'problemId': widget.problemId, // ← 追加
-        'players': [hostName],
+        'problemId': widget.problemId,
+        'players': [user.uid], // ←ここをUIDに
         'requiredPlayers': widget.requiredPlayers,
         'readyPlayers': [],
         'createdAt': Timestamp.now(),
       });
 
-       // ここでホストのplayerNameをplayersコレクションにも保存する
+      // ホストのplayerNameをplayersコレクションにも保存する
       await FirebaseFirestore.instance.collection('players').doc(user.uid).set({
         'playerName': hostName,
       });
+
+      await FirebaseFirestore.instance
+      .collection('rooms')
+      .doc(roomId)
+      .collection('players')
+      .doc(user.uid)
+      .set({'playerName': hostName});
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('ルームを作成しました')),
@@ -89,7 +96,7 @@ class _RoomCreationScreenState extends State<RoomCreationScreen> {
           builder: (context) => GameLobbyScreen(
             roomId: roomId,
             problemTitle: widget.problemTitle,
-            problemId: widget.problemId, // ← ここを追加
+            problemId: widget.problemId,
           ),
         ),
       );
