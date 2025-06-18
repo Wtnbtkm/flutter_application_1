@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/mock/screens/PrivateChatScreen.dart';
 
-// --- 画面本体 ---
 class DiscussionScreen extends StatefulWidget {
   final String roomId;
   final String problemId;
@@ -45,14 +44,22 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
   String? privateRoomId;
   Timer? _privateChatTimer;
   int privateChatRemainingSeconds = 0;
-  static const int privateChatDurationSeconds = 1 * 60;
+  static const int privateChatDurationSeconds = 60; // 1分
   bool privateChatActive = false;
   bool _isPrivateChatActive = false;  
+  bool _canEnterPrivateChat = false;
+  String? _activePrivateChatId;
+
+  // --- 話し合い全体タイマー制御 ---
+  int discussionSecondsLeft = 60; // 1分
+  Timer? _discussionTimer;
+  bool discussionTimeUp = false;
+  bool discussionStarted = false; // 証拠選択終了後にタイマーを開始するためのフラグ
 
   // 順番制御用
-  List<List<String>> privateChatPairs = []; // [[uidA,uidB], ...]
-  int privateChatTurn = 0; // 今のペアのインデックス
-  bool privateChatPhase = false; // 個別チャットフェーズかどうか
+  List<List<String>> privateChatPairs = [];
+  int privateChatTurn = 0;
+  bool privateChatPhase = false;
 
   @override
   void initState() {
@@ -60,38 +67,85 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     myUid = FirebaseAuth.instance.currentUser?.uid;
     _loadInitData();
     _startPrivateChatListener();
+    _listenActivePrivateChat();
+    // _startDiscussionTimer(); // ←証拠選択後に呼ぶのでここはコメントアウト
   }
 
-  void _startPrivateChatListener() {
-  FirebaseFirestore.instance
+  void _startDiscussionTimer() {
+    _discussionTimer?.cancel();
+    setState(() {
+      discussionSecondsLeft = 60;
+      discussionTimeUp = false;
+    });
+    _discussionTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (discussionSecondsLeft > 0) {
+        setState(() {
+          discussionSecondsLeft--;
+        });
+      } else {
+        _discussionTimer?.cancel();
+        setState(() {
+          discussionTimeUp = true;
+        });
+      }
+    });
+  }
+
+  void _listenActivePrivateChat() {
+    FirebaseFirestore.instance
       .collection('rooms')
       .doc(widget.roomId)
       .collection('privateChats')
       .snapshots()
       .listen((snapshot) {
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final List participants = data['participants'] ?? [];
-      final bool isActive = data['active'] ?? true;
-      // まだチャット画面でない、activeなチャット、かつ自分が含まれてる
-      if (isActive && participants.contains(widget.playerUid) && !_isPrivateChatActive) {
-        // すでに表示中なら何もしない（例：フラグで管理するか、Navigator stackを確認）
-        // まだなら遷移
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) => PrivateChatScreen(
-            roomId: widget.roomId,
-            sessionId: doc.id,
-            timeLimitSeconds: PrivateChatScreen.defaultTimeLimitSeconds,
-            round: 1,
-          ),
-        )).then((_){
-          _isPrivateChatActive = false;
+        bool found = false;
+        String? activeId;
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final List participants = data['participants'] ?? [];
+          final bool isActive = data['active'] ?? true;
+          if (isActive && participants.contains(widget.playerUid)) {
+            found = true;
+            activeId = doc.id;
+            break;
+          }
+        }
+        // 個別チャットは話し合い後のみ許可
+        setState(() {
+          _canEnterPrivateChat = found && discussionTimeUp;
+          _activePrivateChatId = activeId;
         });
-        break;
-      }
-    }
-  });
-}
+      });
+  }
+
+  void _startPrivateChatListener() {
+    FirebaseFirestore.instance
+      .collection('rooms')
+      .doc(widget.roomId)
+      .collection('privateChats')
+      .snapshots()
+      .listen((snapshot) {
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final List participants = data['participants'] ?? [];
+          final bool isActive = data['active'] ?? true;
+          if (isActive && participants.contains(widget.playerUid) && !_isPrivateChatActive) {
+            _isPrivateChatActive = true;
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) => PrivateChatScreen(
+                roomId: widget.roomId,
+                sessionId: doc.id,
+                timeLimitSeconds: PrivateChatScreen.defaultTimeLimitSeconds,
+                round: 1,
+              ),
+            )).then((_) {
+              _isPrivateChatActive = false;
+            });
+            break;
+          }
+        }
+      });
+  }
 
   Future<void> _loadInitData() async {
     DocumentSnapshot<Map<String, dynamic>>? problemSnap;
@@ -135,7 +189,6 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     playerOrder = List<String>.from(roomData['players'] ?? []);
     evidenceTurn = roomData['evidenceTurn'] ?? 0;
 
-    // 個別チャットフェーズ情報・順番取得
     privateChatPhase = roomData['privateChatPhase'] ?? false;
     privateChatTurn = roomData['privateChatTurn'] ?? 0;
     privateChatPairs = List<List<String>>.from(
@@ -210,7 +263,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
 
   Future<void> _sendMessage() async {
     final message = _controller.text.trim();
-    if (message.isEmpty) return;
+    if (message.isEmpty || !discussionStarted || discussionTimeUp) return;
     await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
@@ -223,40 +276,30 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     _controller.clear();
   }
 
-  /// 順番で自分の番の場合のみ、相手選択ダイアログ→開始
   void _tryEnterPrivateChat() async {
-    if (!privateChatPhase) return;
-    if (privateChatPairs.isEmpty || privateChatTurn >= privateChatPairs.length) return;
-    final nowPair = privateChatPairs[privateChatTurn];
-    if (!nowPair.contains(widget.playerUid)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("あなたの個別チャットの順番ではありません。")),
-      );
-      return;
-    }
-    // 2人ならそのまま、3人以上なら選択
-    if (nowPair.length == 2) {
-      final partnerUid = nowPair.firstWhere((uid) => uid != widget.playerUid);
-      final snap = await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomId)
-          .collection('players')
-          .doc(partnerUid)
-          .get();
-      final data = snap.data() ?? {};
-      final partnerName = data['playerName'] ?? '名無し';
-      _startPrivateChat(partnerUid, partnerName);
-    } else {
-      showDialog(
-        context: context,
-        builder: (_) => _buildPrivateChatSelector(
-          candidates: nowPair.where((uid) => uid != widget.playerUid).toList(),
-        ),
-      );
-    }
+    if (!_canEnterPrivateChat || _activePrivateChatId == null) return;
+    final chatDoc = await FirebaseFirestore.instance
+        .collection('rooms')
+        .doc(widget.roomId)
+        .collection('privateChats')
+        .doc(_activePrivateChatId)
+        .get();
+    final data = chatDoc.data();
+    if (data == null) return;
+    final List participants = data['participants'] ?? [];
+    final bool isActive = data['active'] ?? true;
+    if (!isActive || !participants.contains(widget.playerUid)) return;
+    if (!mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (context) => PrivateChatScreen(
+        roomId: widget.roomId,
+        sessionId: _activePrivateChatId!,
+        timeLimitSeconds: PrivateChatScreen.defaultTimeLimitSeconds,
+        round: 1,
+      ),
+    ));
   }
 
-  /// 個別チャット相手選択ダイアログ（順番ペア対応）
   Widget _buildPrivateChatSelector({List<String>? candidates}) {
     final list = candidates ?? availablePlayers;
     return AlertDialog(
@@ -301,7 +344,6 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     );
   }
 
-  // --- 個別チャット開始 ---
   void _startPrivateChat(String partnerUid, String partnerName) async {
     final uids = [widget.playerUid, partnerUid]..sort();
     final privateId = 'private_${uids[0]}_${uids[1]}_${widget.roomId}';
@@ -320,59 +362,10 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
         'active': true,
       });
     }
-    //ここで画面遷移して移動
-    if (!mounted) return;
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (context) => PrivateChatScreen(
-        roomId: widget.roomId,
-        sessionId: privateId,
-        timeLimitSeconds: PrivateChatScreen.defaultTimeLimitSeconds,
-        round: 1, // 必要に応じて
-      ),
-    ));
-
-    /*setState(() {
-      isPrivateChatMode = true;
-      selectedPartnerUid = partnerUid;
-      selectedPartnerName = partnerName;
-      privateRoomId = privateId;
-      privateChatActive = true;
-      privateChatRemainingSeconds = PrivateChatScreen.defaultTimeLimitSeconds;
-    });*/
+    // 遷移はリスナー任せ
   }
 
-  // --- 個別チャット終了と順番進行 ---
-  void _onFinishPrivateChat() async {
-    _exitPrivateChat();
-    // ホストだけ次へ
-    if (widget.playerUid == hostUid) {
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomId)
-          .update({'privateChatTurn': privateChatTurn + 1});
-    }
-  }
-
-  void _exitPrivateChat() {
-    _privateChatTimer?.cancel();
-    setState(() {
-      isPrivateChatMode = false;
-      selectedPartnerUid = null;
-      selectedPartnerName = null;
-      privateRoomId = null;
-      privateChatActive = false;
-      privateChatRemainingSeconds = 0;
-    });
-  }
-
-  @override
-  void dispose() {
-    _privateChatTimer?.cancel();
-    super.dispose();
-  }
-
-  // --- 個別チャット順番ボタンUI ---
-  Widget _buildPrivateChatOrderButton() {
+  Widget _buildPrivateChatOrderButton(bool showPrivateChatButton) {
     if (!privateChatPhase ||
         privateChatPairs.isEmpty ||
         privateChatTurn >= privateChatPairs.length) {
@@ -380,6 +373,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     }
     final nowPair = privateChatPairs[privateChatTurn];
     final isMyTurn = nowPair.contains(widget.playerUid);
+
     if (!isMyTurn) {
       final myNextIdx = privateChatPairs.indexWhere((pair) => pair.contains(widget.playerUid));
       final waitMsg = (myNextIdx > privateChatTurn)
@@ -390,16 +384,27 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
         child: Text(waitMsg, style: const TextStyle(color: Colors.amber)),
       );
     }
-    // 自分の順番のときだけボタン
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: ElevatedButton.icon(
         icon: const Icon(Icons.forum, color: Colors.white),
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[800]),
-        label: const Text("個別チャットを開始", style: TextStyle(color: Colors.white)),
-        onPressed: _tryEnterPrivateChat,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: showPrivateChatButton ? Colors.amber[800] : Colors.grey,
+        ),
+        label: Text(
+          showPrivateChatButton ? "個別チャットを開始" : "まだ開始できません",
+          style: const TextStyle(color: Colors.white),
+        ),
+        onPressed: showPrivateChatButton ? _tryEnterPrivateChat : null,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _discussionTimer?.cancel();
+    _privateChatTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -408,18 +413,6 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
       return const Scaffold(
         backgroundColor: Color(0xFF23232A),
         body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    // ★個別チャット中はPrivateChatScreenで表示
-    if (isPrivateChatMode && privateRoomId != null) {
-      return PrivateChatScreen(
-        roomId: widget.roomId,
-        sessionId: privateRoomId!,
-        timeLimitSeconds: privateChatRemainingSeconds > 0
-            ? privateChatRemainingSeconds
-            : PrivateChatScreen.defaultTimeLimitSeconds,
-        round: 1, // 必要に応じて管理
       );
     }
 
@@ -440,7 +433,6 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
         bool evidenceChoosingPhase = data['evidenceChoosingPhase'] ?? true;
         playerOrder = List<String>.from(data['players'] ?? playerOrder);
 
-        // 個別チャットフェーズ情報
         privateChatPhase = data['privateChatPhase'] ?? false;
         privateChatTurn = data['privateChatTurn'] ?? 0;
         privateChatPairs = List<List<String>>.from(
@@ -448,6 +440,15 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
             (e) => List<String>.from(e),
           ),
         );
+
+        // --- 話し合いタイマーの開始判定 ---
+        if (!evidenceChoosingPhase && !discussionStarted) {
+          _startDiscussionTimer();
+          discussionStarted = true;
+        }
+        // 個別チャットボタン表示判定
+        final showPrivateChatButton =
+            !evidenceChoosingPhase && discussionTimeUp;
 
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
@@ -484,6 +485,21 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
                   backgroundColor: Colors.black87,
                   title: const Text('推理・チャット',
                       style: TextStyle(letterSpacing: 2)),
+                  actions: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.timer, color: Colors.amber),
+                          Text(
+                            ' 1:00',
+                            style: const TextStyle(
+                                color: Colors.amber, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 body: Padding(
                   padding: const EdgeInsets.all(24.0),
@@ -564,19 +580,23 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
                 backgroundColor: Colors.black87,
                 title: const Text('推理・チャット', style: TextStyle(letterSpacing: 2)),
                 actions: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.timer, color: Colors.amber),
+                        Text(
+                          ' ${discussionSecondsLeft ~/ 60}:${(discussionSecondsLeft % 60).toString().padLeft(2, '0')}',
+                          style: const TextStyle(
+                              color: Colors.amber, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.forum, color: Colors.amber),
                     tooltip: '個別チャットを開始',
-                    onPressed: () {
-                      if (privateChatPhase) {
-                        _tryEnterPrivateChat();
-                      } else {
-                        showDialog(
-                          context: context,
-                          builder: (_) => _buildPrivateChatSelector(),
-                        );
-                      }
-                    },
+                    onPressed: showPrivateChatButton ? _tryEnterPrivateChat : null,
                   ),
                   IconButton(
                     icon: const Icon(Icons.assignment_ind, color: Colors.amber),
@@ -723,7 +743,16 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
                 child: Column(
                   children: [
                     if (privateChatPhase)
-                      _buildPrivateChatOrderButton(),
+                      _buildPrivateChatOrderButton(showPrivateChatButton),
+                    if (discussionTimeUp)
+                      Container(
+                        color: Colors.red[900],
+                        padding: const EdgeInsets.all(12),
+                        child: const Text(
+                          "話し合いの制限時間が終了しました。",
+                          style: TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     Expanded(
                       child: StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
@@ -768,6 +797,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
                             child: TextField(
                               controller: _controller,
                               style: const TextStyle(color: Colors.white),
+                              enabled: discussionStarted && !discussionTimeUp,
                               decoration: InputDecoration(
                                 hintText: 'メッセージを入力',
                                 hintStyle: TextStyle(color: Colors.white54),
@@ -785,7 +815,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.send, color: Colors.amber),
-                            onPressed: _sendMessage,
+                            onPressed: (discussionStarted && !discussionTimeUp) ? _sendMessage : null,
                           ),
                         ],
                       ),
@@ -801,7 +831,6 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
   }
 }
 
-// --- チャット吹き出しウィジェット ---
 class _ChatMessageBubble extends StatelessWidget {
   final String roomId;
   final String senderUid;
