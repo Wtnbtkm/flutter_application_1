@@ -68,7 +68,6 @@ class EvidenceSelectionScreen extends StatelessWidget {
                           ? null
                           : () async {
                               await onChooseEvidence(i);
-                              // Firestore更新後、親のStreamBuilderで自動再描画される
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: alreadyChosen.contains(i)
