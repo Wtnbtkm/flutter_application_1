@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/mock/screens/private_chat_screen.dart';
 import 'package:flutter_application_1/mock/screens/evidence_selection_screen.dart';
+import 'package:flutter_application_1/mock/screens/accusation_screen.dart';
 
 class DiscussionScreen extends StatefulWidget {
   final String roomId;
@@ -77,16 +78,22 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
   }
 
   // 指定したuidがまだ話していない相手を返す（ラウンド指定）
-  List<String> getAvailableChatPartnersFor(String uid, List<Map<String, dynamic>> history, List<String> allPlayers, int round) {
-    final spokenWith = history
-        .where((pair) =>
-            (pair['a'] == uid || pair['b'] == uid) &&
-            (pair['round'] == round))
-        .map((pair) => pair['a'] == uid ? pair['b'] : pair['a'])
-        .toSet();
-    return allPlayers
-        .where((other) => other != uid && !spokenWith.contains(other))
-        .toList();
+  List<String> getAvailableChatPartnersFor(
+  String uid,
+  List<Map<String, dynamic>> history,
+  List<String> allPlayers,
+  int round,
+  ) {
+    Set<String> spokenWith = {};
+    for (final pair in history) {
+      if (pair['round'] != round) continue;
+      if (pair['a'] == uid) {
+        spokenWith.add(pair['b']);
+      } else if (pair['b'] == uid) {
+        spokenWith.add(pair['a']);
+      }
+    }
+    return allPlayers.where((other) => other != uid && !spokenWith.contains(other)).toList();
   }
 
   Future<void> chooseEvidence(int idx) async {
@@ -331,7 +338,8 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
             .collection('rooms')
             .doc(widget.roomId)
             .update({
-          'phase': 'end',
+          //'phase': 'end',
+          'phase': 'suspicion',
           'privateChatPhase': false,
           'privateChatHistory': [],
         });
@@ -412,8 +420,14 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     };
     final allPlayers = List<String>.from(playerOrder);
 
-    // 履歴に追加
+    // 履歴に追加（同じペア&同じラウンドなら追加しない）
     final newHistory = List<Map<String, dynamic>>.from(privateChatHistory);
+    final alreadyExists = newHistory.any((pair) =>
+      ((pair['a'] == widget.playerUid && pair['b'] == partnerUid) ||
+      (pair['a'] == partnerUid && pair['b'] == widget.playerUid)) &&
+      pair['round'] == discussionRound
+    );
+    if (alreadyExists) return;
     newHistory.add(chosenPair);
 
     // チャットルーム作成
@@ -433,14 +447,24 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     });
 
     // 次の選択権
+    final remaining = allPlayers.where(
+      (uid) => getAvailableChatPartnersFor(uid, newHistory, allPlayers, discussionRound).isNotEmpty
+    ).toList();
+
     String? nextChatterUid;
-    if (getAvailableChatPartnersFor(partnerUid, newHistory, allPlayers, discussionRound).isNotEmpty) {
+    if (remaining.isEmpty) {
+      nextChatterUid = null;
+    } else if (remaining.contains(partnerUid)) {
       nextChatterUid = partnerUid;
     } else {
-      final found = allPlayers.where(
-        (uid) => getAvailableChatPartnersFor(uid, newHistory, allPlayers, discussionRound).isNotEmpty,
-      );
-      nextChatterUid = found.isNotEmpty ? found.first : null;
+      int last = allPlayers.indexOf(partnerUid);
+      for (int i = 1; i <= allPlayers.length; i++) {
+        int idx = (last + i) % allPlayers.length;
+        if (remaining.contains(allPlayers[idx])) {
+          nextChatterUid = allPlayers[idx];
+          break;
+        }
+      }
     }
 
     final n = allPlayers.length;
@@ -456,7 +480,6 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
       'privateChatPhase': (roundHistory.length >= totalPairs) ? false : true,
     });
   }
-  // ----------- 修正版ここまで -----------
 
   @override
   void dispose() {
@@ -512,12 +535,19 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
             });
           });
         }
-
+        
         // --- ラウンド・フェーズによる分岐 ---
         if (phase == 'discussion') {
           return _buildDiscussionPhase(context, evidenceChoosingPhase, data);
         } else if (phase == 'privateChat') {
           return _buildPrivateChatPhase(context);
+        } else if (phase == 'suspicion') {
+          // プレイヤー名リストをFirestoreから取得する場合はここで
+        return SuspicionInputScreen(
+          roomId: widget.roomId,
+          players: playerOrder, // またはFirestoreから取得した名前リスト
+          timeLimitSeconds: 60,
+        );
         } else if (phase == 'end') {
           return Scaffold(
             backgroundColor: const Color(0xFF23232A),
@@ -537,6 +567,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
             backgroundColor: const Color(0xFF23232A),
             body: const Center(
               child: Text("次のフェーズ待ち...", style: TextStyle(color: Colors.amber)),
+
             ),
           );
         }
