@@ -1,17 +1,23 @@
+// 必要なパッケージのインポート
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+// 画面やウィジェットのインポート
 import 'package:flutter_application_1/mock/screens/private_chat_screen.dart';
-import 'package:flutter_application_1/mock/screens/evidence_selection_screen.dart';
 import 'package:flutter_application_1/mock/screens/accusation_screen.dart';
+import 'package:flutter_application_1/mock/screens/discussion_screen/partner_select_dialog.dart';
+import 'package:flutter_application_1/mock/screens/discussion_screen/discussion_phase.dart';
+import 'package:flutter_application_1/mock/screens/discussion_screen/playerInfo_dialog.dart';
+import 'package:flutter_application_1/mock/screens/discussion_screen/private_chat_phase_widget.dart';
 
+// 話し合い画面のメインWidget
 class DiscussionScreen extends StatefulWidget {
-  final String roomId;
-  final String problemId;
-  final String playerUid;
+  final String roomId;      // ルームID
+  final String problemId;   // 問題ID
+  final String playerUid;   // プレイヤーのUID
   const DiscussionScreen({
     Key? key,
     required this.roomId,
@@ -23,66 +29,67 @@ class DiscussionScreen extends StatefulWidget {
   State<DiscussionScreen> createState() => _DiscussionScreenState();
 }
 
+// 状態管理クラス
 class _DiscussionScreenState extends State<DiscussionScreen> {
-  final TextEditingController _controller = TextEditingController();
-  List<Map<String, dynamic>> commonEvidence = [];
-  bool loading = true;
-  List<String> playerOrder = [];
-  int evidenceTurn = 0;
-  String? hostUid;
-  Map<String, List<int>> allChosen = {};
-  List<int> myChosen = [];
-  String? playerName;
-  String? role;
-  String? myUid;
-  Map<String, dynamic>? playerData;
-  Map<String, dynamic>? problemData;
-  int? _prevDiscussionRound;  // ←ここにフィールドとして追加
+  final TextEditingController _controller = TextEditingController(); // メッセージ入力用コントローラー
+  List<Map<String, dynamic>> commonEvidence = []; // 共通証拠リスト
+  bool loading = true; // ローディング中か
+  List<String> playerOrder = []; // プレイヤーの順番
+  int evidenceTurn = 0; // 証拠選択のターン
+  String? hostUid; // ホストのuid
+  Map<String, List<int>> allChosen = {}; // 全員の証拠選択状況
+  List<int> myChosen = []; // 自分が選んだ証拠
+  String? playerName; // プレイヤー名
+  String? role; // 役割
+  String? myUid; // 自分のuid
+  Map<String, dynamic>? playerData; // 自分のデータ
+  Map<String, dynamic>? problemData; // 問題データ
+  int? _prevDiscussionRound; // 前回のディスカッションラウンド
 
   // --- 個別チャット用フィールド ---
-  bool isPrivateChatMode = false;
-  List<String> availablePlayers = [];
-  String? selectedPartnerUid;
-  String? selectedPartnerName;
-  String? privateRoomId;
-  Timer? _privateChatTimer;
-  int privateChatRemainingSeconds = 0;
-  bool privateChatActive = false;
-  bool _isPrivateChatActive = false;
-  String? _activePrivateChatId;
+  bool isPrivateChatMode = false; // 個別チャットモードか
+  List<String> availablePlayers = []; // 個別チャット可能な相手
+  String? selectedPartnerUid; // 選択中の相手uid
+  String? selectedPartnerName; // 選択中の相手名
+  String? privateRoomId; // 個別チャットルームID
+  Timer? _privateChatTimer; // 個別チャットタイマー
+  int privateChatRemainingSeconds = 0; // 個別チャット残り秒数
+  bool privateChatActive = false; // 個別チャットがアクティブか
+  bool _isPrivateChatActive = false; // 個別チャット画面遷移中か
+  String? _activePrivateChatId; // アクティブな個別チャットID
 
   // --- 話し合い全体タイマー制御 ---
-  int discussionSecondsLeft = 60;
-  Timer? _discussionTimer;
-  bool discussionTimeUp = false;
-  bool discussionStarted = false;
+  int discussionSecondsLeft = 60; // 話し合い残り秒数
+  Timer? _discussionTimer; // 話し合いタイマー
+  bool discussionTimeUp = false; // 話し合い時間切れか
+  bool discussionStarted = false; // 話し合いが始まったか
 
   // 個別チャット制御用
-  bool privateChatPhase = false;
-  String? currentPrivateChatterUid;
-  List<Map<String, dynamic>> privateChatHistory = [];
+  bool privateChatPhase = false; // 個別チャットフェーズか
+  String? currentPrivateChatterUid; // 現在選択権のあるuid
+  List<Map<String, dynamic>> privateChatHistory = []; // 個別チャット履歴
 
   // --- ラウンド管理用追加 ---
-  int discussionRound = 1;
-  String phase = 'discussion'; // 'discussion' or 'privateChat' or 'end'
-  static const int maxRounds = 2;
-  static const int discussionTimePerRound = 60;
+  int discussionRound = 1; // 話し合いラウンド
+  String phase = 'discussion'; // 現在のフェーズ
+  static const int maxRounds = 2; // 最大ラウンド数
+  static const int discussionTimePerRound = 60; // 各ラウンドのディスカッション秒数
 
   @override
   void initState() {
     super.initState();
-    myUid = FirebaseAuth.instance.currentUser?.uid;
-    _loadInitData();
-    _startPrivateChatListener();
-    _listenActivePrivateChat();
+    myUid = FirebaseAuth.instance.currentUser?.uid; // ログインユーザーのuid取得
+    _loadInitData(); // 初期データ読み込み
+    _startPrivateChatListener(); // 個別チャット監視開始
+    _listenActivePrivateChat(); // アクティブ個別チャット監視
   }
 
-  // 指定したuidがまだ話していない相手を返す（ラウンド指定）
+  /// 指定uidがまだ話していない相手を返す（ラウンド指定）
   List<String> getAvailableChatPartnersFor(
-  String uid,
-  List<Map<String, dynamic>> history,
-  List<String> allPlayers,
-  int round,
+    String uid,
+    List<Map<String, dynamic>> history,
+    List<String> allPlayers,
+    int round,
   ) {
     Set<String> spokenWith = {};
     for (final pair in history) {
@@ -96,6 +103,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     return allPlayers.where((other) => other != uid && !spokenWith.contains(other)).toList();
   }
 
+  /// 証拠を選ぶ処理
   Future<void> chooseEvidence(int idx) async {
     final ref = FirebaseFirestore.instance
         .collection('rooms')
@@ -109,6 +117,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     chosen.add(idx);
     await ref.set({'chosenCommonEvidence': chosen}, SetOptions(merge: true));
 
+    // 全員の証拠選択状況を取得
     final playersSnap = await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
@@ -122,11 +131,13 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     bool allDone = allChosenTemp.values.every((list) => list.length >= 2);
 
     if (allDone) {
+      // 全員選び終わったらフェーズ終了
       await FirebaseFirestore.instance
           .collection('rooms')
           .doc(widget.roomId)
           .update({'evidenceChoosingPhase': false});
     } else {
+      // 次のターンの人を決める
       int nextTurn = evidenceTurn;
       for (int i = 1; i <= playerOrder.length; i++) {
         int idx2 = (evidenceTurn + i) % playerOrder.length;
@@ -142,6 +153,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     }
   }
 
+  /// Firestoreから初期データを読み込む
   Future<void> _loadInitData() async {
     DocumentSnapshot<Map<String, dynamic>>? problemSnap;
     try {
@@ -162,6 +174,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     }
     problemData = _problemData;
 
+    // 共通証拠データの整形
     commonEvidence = [];
     if (problemData!['commonEvidence'] != null) {
       if (problemData!['commonEvidence'] is List) {
@@ -175,6 +188,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
       }
     }
 
+    // ルーム情報取得
     final roomSnap = await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
@@ -189,10 +203,11 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
         .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
         .toList();
 
-    // --- ラウンド・フェーズ読み込み ---
+    // ラウンド・フェーズ情報取得
     discussionRound = roomData['discussionRound'] ?? 1;
     phase = roomData['phase'] ?? 'discussion';
 
+    // プレイヤー自身の情報取得
     final mySnap = await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
@@ -209,6 +224,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     });
   }
 
+  /// 話し合いタイマー開始
   void _startDiscussionTimer() {
     _discussionTimer?.cancel();
     setState(() {
@@ -231,6 +247,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     });
   }
 
+  /// 個別チャットフェーズへ遷移
   Future<void> _goToPrivateChatPhase() async {
     await FirebaseFirestore.instance
         .collection('rooms')
@@ -243,6 +260,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     });
   }
 
+  /// アクティブな個別チャットを監視し、画面遷移に利用
   void _listenActivePrivateChat() {
     FirebaseFirestore.instance
         .collection('rooms')
@@ -266,6 +284,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     });
   }
 
+  /// 個別チャットの状態を監視し、アクティブ時にチャット画面へ遷移
   void _startPrivateChatListener() {
     FirebaseFirestore.instance
     .collection('rooms')
@@ -299,7 +318,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     });
   }
 
-  // --- 個別チャット全員終了チェック＆次ラウンド進行 ---
+  /// 個別チャット全員終了チェック＆次ラウンド進行
   Future<void> _onPrivateChatEnd() async {
     final privateChatsSnap = await FirebaseFirestore.instance
         .collection('rooms')
@@ -320,7 +339,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
 
     if (allInactive && roundHistory.length >= totalPairs) {
       if (discussionRound < maxRounds) {
-        //まだ次のラウンドがある
+        // まだ次のラウンドがある
         await FirebaseFirestore.instance
             .collection('rooms')
             .doc(widget.roomId)
@@ -338,7 +357,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
             .collection('rooms')
             .doc(widget.roomId)
             .update({
-          //'phase': 'end',
+          // 'phase': 'end',
           'phase': 'suspicion',
           'privateChatPhase': false,
           'privateChatHistory': [],
@@ -347,6 +366,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     }
   }
 
+  /// チャットメッセージ送信
   Future<void> _sendMessage() async {
     final message = _controller.text.trim();
     if (message.isEmpty || !discussionStarted || discussionTimeUp) return;
@@ -362,6 +382,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     _controller.clear();
   }
 
+  /// 話していないプレイヤーリストを取得
   List<String> getAvailableChatPartners() {
     return playerOrder.where((uid) {
       if (uid == widget.playerUid) return false;
@@ -371,12 +392,14 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     }).toList();
   }
 
+  /// 個別チャット選択権があるか判定
   bool get canChoosePrivateChatPartner =>
     privateChatPhase &&
     currentPrivateChatterUid == widget.playerUid &&
     (currentPrivateChatterUid?.isNotEmpty ?? false) &&
     getAvailableChatPartners().isNotEmpty;
 
+  /// 相手選択ダイアログを表示
   void _showPartnerSelectDialog() async {
     final partners = getAvailableChatPartners();
     if (partners.isEmpty) return;
@@ -392,94 +415,91 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     }
     showDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
-              backgroundColor: Colors.black87,
-              title: const Text("個別チャット相手を選択",
-                  style: TextStyle(color: Colors.amber)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: partners
-                    .map((uid) => ListTile(
-                          title: Text(partnerNames[uid] ?? uid,
-                              style: const TextStyle(color: Colors.white)),
-                          onTap: () async {
-                            Navigator.pop(ctx);
-                            await _startPrivateChatWith(uid);
-                          },
-                        ))
-                    .toList(),
-              ),
-            ));
+        builder: (ctx) => PartnerSelectDialog(
+          partners: partners,
+          partnerNames: partnerNames,
+          onSelected: (uid) async {
+            await _startPrivateChatWith(uid);
+          },
+        ),
+    );
   }
 
+  /// 指定した相手と個別チャット開始
   Future<void> _startPrivateChatWith(String partnerUid) async {
-    final chosenPair = {
-      'a': widget.playerUid,
-      'b': partnerUid,
-      'round': discussionRound,
-    };
-    final allPlayers = List<String>.from(playerOrder);
+    final roomDoc = FirebaseFirestore.instance.collection('rooms').doc(widget.roomId);
 
-    // 履歴に追加（同じペア&同じラウンドなら追加しない）
-    final newHistory = List<Map<String, dynamic>>.from(privateChatHistory);
-    final alreadyExists = newHistory.any((pair) =>
-      ((pair['a'] == widget.playerUid && pair['b'] == partnerUid) ||
-      (pair['a'] == partnerUid && pair['b'] == widget.playerUid)) &&
-      pair['round'] == discussionRound
-    );
-    if (alreadyExists) return;
-    newHistory.add(chosenPair);
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final roomSnap = await transaction.get(roomDoc);
 
-    // チャットルーム作成
-    final chosenId =
-        'private_${chosenPair['a']}_${chosenPair['b']}_${widget.roomId}_$discussionRound';
-    await FirebaseFirestore.instance
-        .collection('rooms')
-        .doc(widget.roomId)
-        .collection('privateChats')
-        .doc(chosenId)
-        .set({
-      'participants': [chosenPair['a'], chosenPair['b']],
-      'startTimestamp': FieldValue.serverTimestamp(),
-      'durationSeconds': PrivateChatScreen.defaultTimeLimitSeconds,
-      'active': true,
-      'round': discussionRound,
-    });
+      // 最新のprivateChatHistoryとplayerOrderを取得
+      final allPlayers = List<String>.from(roomSnap.data()?['players'] ?? []);
+      final discussionRound = roomSnap.data()?['discussionRound'] ?? this.discussionRound;
+      final privateChatHistory = (roomSnap.data()?['privateChatHistory'] ?? [])
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+          .toList();
 
-    // 次の選択権
-    final remaining = allPlayers.where(
-      (uid) => getAvailableChatPartnersFor(uid, newHistory, allPlayers, discussionRound).isNotEmpty
-    ).toList();
+      final chosenPair = {
+        'a': widget.playerUid,
+        'b': partnerUid,
+        'round': discussionRound,
+      };
 
-    String? nextChatterUid;
-    if (remaining.isEmpty) {
-      nextChatterUid = null;
-    } else if (remaining.contains(partnerUid)) {
-      nextChatterUid = partnerUid;
-    } else {
-      int last = allPlayers.indexOf(partnerUid);
-      for (int i = 1; i <= allPlayers.length; i++) {
-        int idx = (last + i) % allPlayers.length;
-        if (remaining.contains(allPlayers[idx])) {
-          nextChatterUid = allPlayers[idx];
-          break;
+      // すでに同じペア・同じラウンドでチャットしていたら何もしない
+      final alreadyExists = privateChatHistory.any((pair) =>
+        ((pair['a'] == widget.playerUid && pair['b'] == partnerUid) ||
+        (pair['a'] == partnerUid && pair['b'] == widget.playerUid)) &&
+        pair['round'] == discussionRound
+      );
+      if (alreadyExists) return;
+
+      privateChatHistory.add(chosenPair);
+
+      // チャットルーム作成
+      final chosenId =
+          'private_${chosenPair['a']}_${chosenPair['b']}_${widget.roomId}_$discussionRound';
+      final privateChatRef = roomDoc.collection('privateChats').doc(chosenId);
+      transaction.set(privateChatRef, {
+        'participants': [chosenPair['a'], chosenPair['b']],
+        'startTimestamp': FieldValue.serverTimestamp(),
+        'durationSeconds': PrivateChatScreen.defaultTimeLimitSeconds,
+        'active': true,
+        'round': discussionRound,
+      });
+
+      // 次の選択権を計算
+      final remaining = allPlayers.where(
+        (uid) => getAvailableChatPartnersFor(uid, privateChatHistory, allPlayers, discussionRound).isNotEmpty
+      ).toList();
+
+      String? nextChatterUid;
+      if (remaining.isEmpty) {
+        nextChatterUid = null;
+      } else if (remaining.contains(partnerUid)) {
+        nextChatterUid = partnerUid;
+      } else {
+        int last = allPlayers.indexOf(partnerUid);
+        for (int i = 1; i <= allPlayers.length; i++) {
+          int idx = (last + i) % allPlayers.length;
+          if (remaining.contains(allPlayers[idx])) {
+            nextChatterUid = allPlayers[idx];
+            break;
+          }
         }
       }
-    }
 
-    final n = allPlayers.length;
-    final totalPairs = (n * (n - 1)) ~/ 2;
-    final roundHistory = newHistory.where((pair) => pair['round'] == discussionRound).toList();
+      final n = allPlayers.length;
+      final totalPairs = (n * (n - 1)) ~/ 2;
+      final roundHistory = privateChatHistory.where((pair) => pair['round'] == discussionRound).toList();
 
-    await FirebaseFirestore.instance
-        .collection('rooms')
-        .doc(widget.roomId)
-        .update({
-      'privateChatHistory': newHistory,
-      'currentPrivateChatterUid': (roundHistory.length >= totalPairs) ? null : nextChatterUid,
-      'privateChatPhase': (roundHistory.length >= totalPairs) ? false : true,
+      transaction.update(roomDoc, {
+        'privateChatHistory': privateChatHistory,
+        'currentPrivateChatterUid': (roundHistory.length >= totalPairs) ? null : nextChatterUid,
+        'privateChatPhase': (roundHistory.length >= totalPairs) ? false : true,
+      });
     });
   }
+
 
   @override
   void dispose() {
@@ -488,15 +508,18 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     super.dispose();
   }
 
+  /// 画面描画
   @override
   Widget build(BuildContext context) {
     if (loading) {
+      // ローディング中
       return const Scaffold(
         backgroundColor: Color(0xFF23232A),
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
+    // Firestoreの部屋情報を監視
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('rooms')
@@ -504,6 +527,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
           .snapshots(),
       builder: (context, roomSnap) {
         if (!roomSnap.hasData) {
+          // データ未取得
           return const Scaffold(
             backgroundColor: Color(0xFF23232A),
             body: Center(child: CircularProgressIndicator()),
@@ -519,11 +543,11 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
         privateChatHistory = (data['privateChatHistory'] ?? [])
             .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
             .toList();
-        // --- ラウンド・フェーズ監視 ---
+        // ラウンド・フェーズ監視
         discussionRound = data['discussionRound'] ?? 1;
         phase = data['phase'] ?? 'discussion';
 
-        // --- 話し合いタイマーの開始判定 ---
+        // 話し合いタイマーの開始判定
         if (phase == 'discussion' && !evidenceChoosingPhase &&
             (_prevDiscussionRound != discussionRound || discussionTimeUp)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -535,20 +559,49 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
             });
           });
         }
-        
-        // --- ラウンド・フェーズによる分岐 ---
+
+        // ラウンド・フェーズによる画面分岐
         if (phase == 'discussion') {
-          return _buildDiscussionPhase(context, evidenceChoosingPhase, data);
+          return DiscussionPhaseWidget(
+            roomId: widget.roomId,
+            playerUid: widget.playerUid,
+            evidenceChoosingPhase: evidenceChoosingPhase,
+            evidenceTurn: evidenceTurn,
+            playerOrder: playerOrder,
+            commonEvidence: commonEvidence,
+            myChosen: myChosen,
+            canChoosePrivateChatPartner: canChoosePrivateChatPartner,
+            onShowPartnerSelectDialog: _showPartnerSelectDialog,
+            onSendMessage: _sendMessage,
+            controller: _controller,
+            discussionStarted: discussionStarted,
+            discussionTimeUp: discussionTimeUp,
+            discussionSecondsLeft: discussionSecondsLeft,
+            discussionRound: discussionRound,
+            privateChatPhase: privateChatPhase,
+            currentPrivateChatterUid: currentPrivateChatterUid,
+            problemData: problemData,
+            onChooseEvidence: chooseEvidence,
+            onShowPlayerInfo: _showPlayerInfoDialog,
+          );
         } else if (phase == 'privateChat') {
-          return _buildPrivateChatPhase(context);
+          return PrivateChatPhaseWidget(
+            roomId: widget.roomId,
+            discussionRound: discussionRound,
+            privateChatPhase: privateChatPhase,
+            canChoosePrivateChatPartner: canChoosePrivateChatPartner,
+            onShowPartnerSelectDialog: _showPartnerSelectDialog,
+            onPrivateChatEnd: _onPrivateChatEnd,
+          );
         } else if (phase == 'suspicion') {
-          // プレイヤー名リストをFirestoreから取得する場合はここで
-        return SuspicionInputScreen(
-          roomId: widget.roomId,
-          players: playerOrder, // またはFirestoreから取得した名前リスト
-          timeLimitSeconds: 60,
-        );
+          // 疑惑入力フェーズ
+          return SuspicionInputScreen(
+            roomId: widget.roomId,
+            players: playerOrder, // プレイヤーリスト
+            timeLimitSeconds: 60,
+          );
         } else if (phase == 'end') {
+          // 終了画面
           return Scaffold(
             backgroundColor: const Color(0xFF23232A),
             body: const Center(
@@ -563,11 +616,11 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
             ),
           );
         } else {
+          // その他フェーズ
           return Scaffold(
             backgroundColor: const Color(0xFF23232A),
             body: const Center(
               child: Text("次のフェーズ待ち...", style: TextStyle(color: Colors.amber)),
-
             ),
           );
         }
@@ -575,473 +628,22 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     );
   }
 
-  Widget _buildDiscussionPhase(BuildContext context, bool evidenceChoosingPhase, Map<String, dynamic> data) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomId)
-          .collection('players')
-          .snapshots(),
-      builder: (context, psnap) {
-        if (!psnap.hasData) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF23232A),
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        allChosen = {};
-        for (final doc in psnap.data!.docs) {
-          allChosen[doc.id] = List<int>.from(
-              (doc.data() as Map<String, dynamic>)['chosenCommonEvidence'] ??
-                  []);
-          if (doc.id == widget.playerUid) {
-            myChosen = allChosen[doc.id]!;
-          }
-        }
+  /// プレイヤー情報ダイアログ表示
+  void _showPlayerInfoDialog() async {
+    final mySnap = await FirebaseFirestore.instance
+      .collection('rooms')
+      .doc(widget.roomId)
+      .collection('players')
+      .doc(widget.playerUid)
+      .get();
+    final latestPlayerData = mySnap.data() ?? {};
 
-        if (evidenceChoosingPhase) {
-          final isMyTurnDraft = playerOrder.isNotEmpty &&
-              playerOrder[evidenceTurn] == widget.playerUid;
-          final alreadyChosen = allChosen.values.expand((e) => e).toSet();
-
-          return EvidenceSelectionScreen(
-            commonEvidence: commonEvidence,
-            myChosen: myChosen,
-            playerOrder: playerOrder,
-            evidenceTurn: evidenceTurn,
-            alreadyChosen: alreadyChosen.cast<int>(),
-            isMyTurnDraft: isMyTurnDraft,
-            playerUid: widget.playerUid,
-            onChooseEvidence: chooseEvidence,
-          );
-        }
-
-        return Scaffold(
-          appBar: AppBar(
-            backgroundColor: Colors.black87,
-            title: Text('推理・チャット 第$discussionRoundラウンド',
-                style: const TextStyle(letterSpacing: 2)),
-            actions: [
-              if (canChoosePrivateChatPartner)
-                IconButton(
-                  icon: const Icon(Icons.forum, color: Colors.amber),
-                  tooltip: '個別チャット相手を選択',
-                  onPressed: _showPartnerSelectDialog,
-                ),
-              IconButton(
-                icon: const Icon(Icons.assignment_ind, color: Colors.amber),
-                onPressed: () async {
-                  final mySnap = await FirebaseFirestore.instance
-                      .collection('rooms')
-                      .doc(widget.roomId)
-                      .collection('players')
-                      .doc(widget.playerUid)
-                      .get();
-                  final latestPlayerData = mySnap.data() ?? {};
-
-                  final evidenceList = List.from(latestPlayerData['evidence'] ?? []);
-                  final winConditionsList =
-                      List.from(latestPlayerData['winConditions'] ?? []);
-                  final description = latestPlayerData['description'] ?? '';
-                  final List<Map<String, dynamic>> commonEvidenceList =
-                      List<Map<String, dynamic>>.from(problemData?['commonEvidence'] ?? []);
-                  final List<int> chosenEvidenceIndexes =
-                      List<int>.from(latestPlayerData['chosenCommonEvidence'] ?? []);
-                  final myCommonEvidenceList = [
-                    for (final i in chosenEvidenceIndexes)
-                      if (i >= 0 && i < commonEvidenceList.length)
-                        commonEvidenceList[i]
-                  ];
-
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        backgroundColor: Colors.black87,
-                        title: const Text('あなたのキャラクター情報',
-                            style: TextStyle(color: Colors.amber)),
-                        content: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (problemData != null) ...[
-                                Text(
-                                    '事件の舞台: ${problemData!['title'] ?? ''}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      color: Colors.amber,
-                                      letterSpacing: 2,
-                                    )),
-                                const SizedBox(height: 8),
-                                Text(problemData!['story'] ?? '',
-                                    style: const TextStyle(
-                                        fontSize: 14, color: Colors.white70)),
-                                const Divider(
-                                    color: Colors.amber,
-                                    height: 28,
-                                    thickness: 1.2),
-                              ],
-                              Text(
-                                  'あなたの役職: ${latestPlayerData['role'] ?? ''}',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: Colors.amber)),
-                              const SizedBox(height: 8),
-                              Text('背景: $description',
-                                  style: const TextStyle(
-                                      fontSize: 14, color: Colors.white)),
-                              const SizedBox(height: 10),
-                              Text('証拠:',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.amber[700])),
-                              ...evidenceList.map<Widget>((e) =>
-                                  Text('- $e',
-                                      style: const TextStyle(
-                                          color: Colors.white))),
-                              const SizedBox(height: 10),
-                              Text('勝利条件:',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.amber[700])),
-                              ...winConditionsList.map<Widget>((e) =>
-                                  Text('- $e',
-                                      style: const TextStyle(
-                                          color: Colors.white))),
-                              const Divider(
-                                  color: Colors.amber,
-                                  height: 28,
-                                  thickness: 1.2),
-                              if (myCommonEvidenceList.isNotEmpty)
-                                Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text('あなたが選んだ共通証拠',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.amber[800])),
-                                    ...myCommonEvidenceList.map<Widget>(
-                                      (e) => Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text('- ${e['title']}',
-                                              style: const TextStyle(
-                                                  color: Colors.white)),
-                                          if ((e['detail'] ?? '')
-                                              .toString()
-                                              .isNotEmpty)
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.only(
-                                                      left: 12,
-                                                      bottom: 4),
-                                              child: Text('${e['detail']}',
-                                                  style: const TextStyle(
-                                                      color:
-                                                          Colors.white70,
-                                                      fontSize: 13)),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                            ],
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: TextButton.styleFrom(
-                                foregroundColor: Colors.amber),
-                            child: const Text("閉じる"),
-                          )
-                        ],
-                      );
-                    },
-                  );
-                },
-              )
-            ],
-          ),
-          backgroundColor: const Color(0xFF23232A),
-          body: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 18.0, bottom: 10.0),
-                  child: Center(
-                    child: Text(
-                      '${discussionSecondsLeft ~/ 60}:${(discussionSecondsLeft % 60).toString().padLeft(2, '0')}',
-                      style: const TextStyle(
-                        color: Colors.amber,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 40,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                  ),
-                ),
-                if (privateChatPhase && !canChoosePrivateChatPartner)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      currentPrivateChatterUid == widget.playerUid
-                          ? "個別チャットで話せる相手がいません"
-                          : currentPrivateChatterUid == null
-                              ? "個別チャット順番待ち"
-                              : "現在${currentPrivateChatterUid == widget.playerUid ? "あなた" : "他のプレイヤー"}が個別チャット相手を選択中です",
-                      style: const TextStyle(color: Colors.amber),
-                    ),
-                  ),
-                if (discussionTimeUp)
-                  Container(
-                    color: Colors.red[900],
-                    padding: const EdgeInsets.all(12),
-                    child: const Text(
-                      "話し合いの制限時間が終了しました。",
-                      style: TextStyle(
-                          color: Colors.amber,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('rooms')
-                        .doc(widget.roomId)
-                        .collection('messages')
-                        .orderBy('timestamp', descending: false)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(
-                            child: CircularProgressIndicator());
-                      }
-                      final docs = snapshot.data!.docs;
-                      return ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 12, horizontal: 8),
-                        itemCount: docs.length,
-                        itemBuilder: (context, idx) {
-                          final data =
-                              docs[idx].data() as Map<String, dynamic>;
-                          final senderUid = data['uid'] ?? '';
-                          final text = data['text'] ?? '';
-                          return _ChatMessageBubble(
-                            roomId: widget.roomId,
-                            senderUid: senderUid,
-                            text: text,
-                            isMe: senderUid == widget.playerUid,
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                Container(
-                  color: Colors.black26,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _controller,
-                          style: const TextStyle(color: Colors.white),
-                          enabled: discussionStarted && !discussionTimeUp,
-                          decoration: InputDecoration(
-                            hintText: 'メッセージを入力',
-                            hintStyle: TextStyle(color: Colors.white54),
-                            filled: true,
-                            fillColor: Colors.black38,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(22),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                          ),
-                          onSubmitted: (_) => _sendMessage(),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.send, color: Colors.amber),
-                        onPressed: (discussionStarted && !discussionTimeUp)
-                            ? _sendMessage
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPrivateChatPhase(BuildContext context) {
-    _onPrivateChatEnd(); // 全員終了チェック
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomId)
-          .collection('privateChats')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF23232A),
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        final docs = snapshot.data!.docs;
-        if (docs.isNotEmpty) {
-          final allInactive = docs.isNotEmpty &&docs.every((doc) => (doc.data() as Map<String, dynamic>)['active'] == false);
-          if (allInactive && privateChatPhase) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _onPrivateChatEnd();
-            });
-          }
-        }
-    
-        // 相手選択ボタン
-        if (canChoosePrivateChatPartner) {
-          // ボタンを押さずに自動でダイアログを出すなら下記を有効化
-          // WidgetsBinding.instance.addPostFrameCallback((_) {
-          //   _showPartnerSelectDialog();
-          // });
-        }
-
-        return Scaffold(
-          backgroundColor: const Color(0xFF23232A),
-          appBar: AppBar(
-                backgroundColor: Colors.black87,
-                title: Text('個別チャットフェーズ 第$discussionRoundラウンド'),
-                actions: [
-                  if (canChoosePrivateChatPartner)
-                    IconButton(
-                      icon: const Icon(Icons.forum, color: Colors.amber),
-                      tooltip: '個別チャット相手を選択',
-                      onPressed: _showPartnerSelectDialog,
-                    ),
-                ],
-          ),
-          body: Center(
-            child: Text(
-              "個別チャットフェーズ 第$discussionRoundラウンドです。\n全員の個別チャットが終了すると次の話し合いフェーズに進みます。",
-              style: const TextStyle(
-                  fontSize: 18, color: Colors.amber, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// --- 既存のチャットバブル ---
-class _ChatMessageBubble extends StatelessWidget {
-  final String roomId;
-  final String senderUid;
-  final String text;
-  final bool isMe;
-
-  const _ChatMessageBubble({
-    required this.roomId,
-    required this.senderUid,
-    required this.text,
-    required this.isMe,
-  });
-
-  Future<Map<String, String>> _getSenderInfo() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('rooms')
-        .doc(roomId)
-        .collection('players')
-        .doc(senderUid)
-        .get();
-    final playerName = doc.data()?['playerName'] ?? '';
-    final role = doc.data()?['role'] ?? '';
-    return {'playerName': playerName, 'role': role};
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, String>>(
-      future: _getSenderInfo(),
-      builder: (context, snap) {
-        final senderName = snap.data?['playerName'] ?? '';
-        final role = snap.data?['role'] ?? '';
-        return Row(
-         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-         crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (!isMe) ...[
-              CircleAvatar(
-                backgroundColor: Colors.amber[800],
-                child: Text(role.isNotEmpty ? role[0] : '?',
-                    style: const TextStyle(color: Colors.white)),
-              ),
-              const SizedBox(width: 6),
-            ],
-            Flexible(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
-                decoration: BoxDecoration(
-                  color: isMe ? Colors.amber[800] : Colors.white10,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(18),
-                    topRight: const Radius.circular(18),
-                    bottomLeft: Radius.circular(isMe ? 18 : 2),
-                    bottomRight: Radius.circular(isMe ? 2 : 18),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      role.isNotEmpty && senderName.isNotEmpty
-                          ? '$role（$senderName）'
-                          : (senderName.isNotEmpty ? senderName : '名無し'),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isMe ? Colors.white : Colors.amber[800],
-                        fontSize: 13,
-                      ),
-                    ),
-                    Text(
-                      text,
-                      style: TextStyle(
-                          color: isMe ? Colors.white : Colors.white70,
-                          fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (isMe) ...[
-              const SizedBox(width: 6),
-              CircleAvatar(
-                backgroundColor: Colors.amber[800],
-                child: Text(role.isNotEmpty ? role[0] : '?',
-                    style: const TextStyle(color: Colors.white)),
-              ),
-            ],
-          ],
-        );
-      },
+    showDialog(
+      context: context,
+        builder: (context) => PlayerInfoDialog(
+        playerData: latestPlayerData,
+        problemData: problemData,
+      ),
     );
   }
 }
