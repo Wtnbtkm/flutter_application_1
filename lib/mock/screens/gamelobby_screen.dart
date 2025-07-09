@@ -30,7 +30,6 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   }
 
   Future<String> _getPlayerName(String uid) async {
-    // ルームサブコレクション優先で取得
     final sub = await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
@@ -40,7 +39,6 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
     if (sub.exists && sub.data()?['playerName'] != null) {
       return sub.data()!['playerName'];
     }
-    // fallback: playersコレクション
     final doc = await FirebaseFirestore.instance.collection('players').doc(uid).get();
     if (doc.exists && doc.data()?['playerName'] != null) {
       return doc.data()!['playerName'];
@@ -80,8 +78,39 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // マーダーミステリーの雰囲気カラー・フォント
+    const Color backgroundColor = Color(0xFF1C1B2F);
+    const Color cardColor = Color(0xFF292845);
+    const Color accentColor = Color(0xFFE84A5F);
+    const String fontFamily = 'MurderMysteryFont'; // pubspec.yamlで追加しておくと良い
+
     return Scaffold(
-      appBar: AppBar(title: const Text('待機ロビー')),
+      backgroundColor: backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.black87,
+        elevation: 6,
+        shadowColor: accentColor.withOpacity(0.5),
+        title: Row(
+          children: [
+            Icon(Icons.local_police, color: accentColor),
+            const SizedBox(width: 8),
+            Text(
+              '待機ロビー',
+              style: TextStyle(
+                fontFamily: fontFamily,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 22,
+                letterSpacing: 2,
+                shadows: [
+                  Shadow(color: accentColor, blurRadius: 3),
+                ],
+              ),
+            ),
+          ],
+        ),
+        centerTitle: true,
+      ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('rooms').doc(widget.roomId).snapshots(),
         builder: (context, snapshot) {
@@ -94,42 +123,60 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
           final allReady = players.length == requiredPlayers && readyPlayers.length == requiredPlayers;
           final myReady = currentUid != null && readyPlayers.contains(currentUid);
 
-          // currentUidがplayers内にいない場合、警告を表示
           if (currentUid != null && !players.contains(currentUid)) {
             return Center(
-              child: Text('あなたのアカウントがルームに存在しません。再参加してください。'),
+              child: Text(
+                'あなたのアカウントがルームに存在しません。再参加してください。',
+                style: TextStyle(color: accentColor, fontFamily: fontFamily),
+              ),
             );
           }
 
-          // gameStartedで全員遷移
           if (data['gameStarted'] == true) {
             Future.microtask(() => _navigateToStoryIntro());
           }
 
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Center(
                   child: Text(
-                    '選択中の問題: ${widget.problemTitle}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    '事件ファイル: ${widget.problemTitle}',
+                    style: TextStyle(
+                      fontFamily: fontFamily,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: accentColor,
+                      letterSpacing: 1,
+                      shadows: [
+                        Shadow(color: Colors.black, blurRadius: 2),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
                     '必要な人数: $requiredPlayers 人',
-                    style: const TextStyle(fontSize: 16),
+                    style: TextStyle(
+                      fontFamily: fontFamily,
+                      fontSize: 16,
+                      color: Colors.white70,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Center(
                   child: Text(
-                    '参加者: ${players.length} / $requiredPlayers',
-                    style: const TextStyle(fontSize: 16),
+                    '現在の参加者: ${players.length} / $requiredPlayers',
+                    style: TextStyle(
+                      fontFamily: fontFamily,
+                      fontSize: 16,
+                      color: accentColor,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -144,58 +191,135 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                         return const Center(child: CircularProgressIndicator());
                       }
                       final playerInfo = snap.data!;
-                      return ListView.builder(
+                      return ListView.separated(
                         itemCount: playerInfo.length,
+                        separatorBuilder: (_, __) => SizedBox(height: 6),
                         itemBuilder: (context, index) {
                           final p = playerInfo[index]['uid']!;
                           final name = playerInfo[index]['name']!;
                           final isMe = (p == currentUid);
-                          return ListTile(
-                            title: Text(
-                              name,
-                              style: isMe
-                                  ? const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: cardColor.withOpacity(0.92),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: readyPlayers.contains(p)
+                                    ? Colors.greenAccent
+                                    : accentColor.withOpacity(0.35),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  offset: Offset(1, 3),
+                                ),
+                              ],
+                            ),
+                            child: ListTile(
+                              leading: Icon(
+                                readyPlayers.contains(p)
+                                    ? Icons.check_circle
+                                    : Icons.hourglass_empty,
+                                color: readyPlayers.contains(p)
+                                    ? Colors.greenAccent
+                                    : Colors.white38,
+                                size: 28,
+                              ),
+                              title: Text(
+                                name,
+                                style: TextStyle(
+                                  fontFamily: fontFamily,
+                                  fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
+                                  color: isMe ? accentColor : Colors.white,
+                                  fontSize: 17,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              subtitle: isMe
+                                  ? Text(
+                                      'あなた',
+                                      style: TextStyle(
+                                        fontFamily: fontFamily,
+                                        color: accentColor,
+                                        fontSize: 13,
+                                      ),
+                                    )
                                   : null,
                             ),
-                            trailing: readyPlayers.contains(p)
-                                ? const Icon(Icons.check_circle, color: Colors.green)
-                                : const Icon(Icons.hourglass_empty),
                           );
                         },
                       );
                     },
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // 準備完了ボタンは全員に表示
                     Expanded(
-                      child: ElevatedButton(
+                      child: ElevatedButton.icon(
                         onPressed: () => _toggleReady(readyPlayers),
                         style: ElevatedButton.styleFrom(
+                          backgroundColor: myReady ? Colors.grey[800] : accentColor,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
+                          textStyle: TextStyle(
+                            fontFamily: fontFamily,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                            letterSpacing: 1.2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(color: Colors.black, width: 1),
+                          ),
+                          elevation: 4,
                         ),
-                        child: Text(myReady ? '準備を解除' : '準備完了'),
+                        icon: Icon(myReady ? Icons.close : Icons.check),
+                        label: Text(myReady ? '準備を解除' : '準備完了'),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    // ゲーム開始ボタンはホストのみ表示
+                    const SizedBox(width: 18),
                     if (isHost)
                       Expanded(
-                        child: ElevatedButton(
+                        child: ElevatedButton.icon(
                           onPressed: allReady ? () => _startGame(data) : null,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: allReady ? Theme.of(context).primaryColor : Colors.grey,
+                            backgroundColor: allReady ? accentColor : Colors.grey[700],
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
+                            textStyle: TextStyle(
+                              fontFamily: fontFamily,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 17,
+                              letterSpacing: 1.2,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(color: Colors.black, width: 1),
+                            ),
+                            elevation: 4,
                           ),
-                          child: const Text('ゲーム開始'),
+                          icon: Icon(Icons.play_arrow),
+                          label: const Text('ゲーム開始'),
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
+                Center(
+                  child: Text(
+                    '事件の幕は、すぐに上がる…',
+                    style: TextStyle(
+                      fontFamily: fontFamily,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.white38,
+                      fontSize: 13,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ),
               ],
             ),
           );

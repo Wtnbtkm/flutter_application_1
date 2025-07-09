@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/mock/screens/launch_screen.dart';
 
+// マーダーミステリー用カラーパレットとフォント
+const Color mmBackground = Color(0xFF1C1B2F);
+const Color mmCard = Color(0xFF292845);
+const Color mmAccent = Color(0xFFE84A5F);
+const String mmFont = 'MurderMysteryFont'; // assets/fontsに追加＆pubspec.yamlに登録想定
+
 // ログイン画面
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -18,7 +24,25 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ログイン画面')),
+      backgroundColor: mmBackground,
+      appBar: AppBar(
+        backgroundColor: Colors.black87,
+        elevation: 7,
+        shadowColor: mmAccent.withOpacity(0.4),
+        centerTitle: true,
+        leading: const Icon(Icons.person_pin, color: mmAccent),
+        title: Text(
+          'Mystery Login',
+          style: const TextStyle(
+            fontFamily: mmFont,
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            color: Colors.white,
+            letterSpacing: 2,
+            shadows: [Shadow(color: mmAccent, blurRadius: 3)],
+          ),
+        ),
+      ),
       body: Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
@@ -32,16 +56,55 @@ class _LoginScreenState extends State<LoginScreen> {
                   // タイトル
                   Text(
                     'ログイン',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontFamily: mmFont,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 28,
+                      color: mmAccent,
+                      letterSpacing: 2,
+                      shadows: [
+                        Shadow(color: Colors.black, blurRadius: 4, offset: Offset(2, 2)),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '— 事件現場への扉 —',
+                    style: const TextStyle(
+                      fontFamily: mmFont,
+                      fontSize: 16,
+                      color: Colors.white70,
+                      letterSpacing: 1.2,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
 
                   // メールアドレス入力
                   TextFormField(
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'メールアドレス',
-                      border: OutlineInputBorder(),
+                      labelStyle: const TextStyle(
+                        fontFamily: mmFont,
+                        color: mmAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      filled: true,
+                      fillColor: mmCard.withOpacity(0.8),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: mmAccent, width: 2),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: mmAccent, width: 2),
+                      ),
+                      prefixIcon: const Icon(Icons.email, color: mmAccent),
+                    ),
+                    style: const TextStyle(
+                      fontFamily: mmFont,
+                      color: Colors.white,
                     ),
                     keyboardType: TextInputType.emailAddress,
                     onChanged: (value) => setState(() => _email = value),
@@ -50,9 +113,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // パスワード入力
                   TextFormField(
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'パスワード',
-                      border: OutlineInputBorder(),
+                      labelStyle: const TextStyle(
+                        fontFamily: mmFont,
+                        color: mmAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      filled: true,
+                      fillColor: mmCard.withOpacity(0.8),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: mmAccent, width: 2),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: mmAccent, width: 2),
+                      ),
+                      prefixIcon: const Icon(Icons.lock, color: mmAccent),
+                    ),
+                    style: const TextStyle(
+                      fontFamily: mmFont,
+                      color: Colors.white,
                     ),
                     obscureText: true,
                     onChanged: (value) => setState(() => _password = value),
@@ -63,10 +145,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      icon: const Icon(Icons.login),
-                      label: const Text('ログイン'),
+                      icon: const Icon(Icons.login, color: Colors.white),
+                      label: Text(
+                        'ログイン',
+                        style: const TextStyle(
+                          fontFamily: mmFont,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: mmAccent,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: const BorderSide(color: Colors.black, width: 1),
+                        ),
+                        elevation: 5,
+                        shadowColor: mmAccent.withOpacity(0.4),
                       ),
                       onPressed: () async {
                         try {
@@ -92,10 +190,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.lock_reset),
-                      label: const Text('パスワードリセット'),
+                      icon: const Icon(Icons.lock_reset, color: mmAccent),
+                      label: Text(
+                        'パスワードリセット',
+                        style: const TextStyle(
+                          fontFamily: mmFont,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
+                        backgroundColor: mmCard.withOpacity(0.5),
+                        foregroundColor: mmAccent,
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: const BorderSide(color: mmAccent, width: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
                       ),
                       onPressed: () async {
                         try {
@@ -117,10 +229,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: TextButton.icon(
-                      icon: const Icon(Icons.logout),
-                      label: const Text('ログアウト'),
+                      icon: const Icon(Icons.logout, color: Colors.white54),
+                      label: Text(
+                        'ログアウト',
+                        style: const TextStyle(
+                          fontFamily: mmFont,
+                          color: Colors.white54,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       style: TextButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white54,
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                       onPressed: () async {
                         await _auth.signOut();
@@ -130,6 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                   ),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),

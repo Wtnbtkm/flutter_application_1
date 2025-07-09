@@ -3,13 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// マーダーミステリー用カラーパレットとフォント
+const Color mmBackground = Color(0xFF1C1B2F);
+const Color mmCard = Color(0xFF292845);
+const Color mmAccent = Color(0xFFE84A5F);
+const String mmFont = 'MurderMysteryFont'; // pubspec.yamlで登録想定
+
 class PrivateChatScreen extends StatefulWidget {
   final String roomId;
   final String sessionId;
   final int timeLimitSeconds;
   final int round;
 
-  static const int defaultTimeLimitSeconds = 60;
+  static const int defaultTimeLimitSeconds = 20;
 
   const PrivateChatScreen({
     Key? key,
@@ -136,7 +142,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         .doc(widget.sessionId)
         .update({'active': false});
   }
-  
+
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (secondsLeft > 0) {
@@ -221,89 +227,136 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.black87,
-          title: const Text('あなたのキャラクター情報',
-              style: TextStyle(color: Colors.amber)),
+          backgroundColor: mmCard.withOpacity(0.98),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: const BorderSide(color: mmAccent, width: 2.5),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.person, color: mmAccent),
+              const SizedBox(width: 10),
+              Text(
+                'あなたのキャラクター情報',
+                style: const TextStyle(
+                  fontFamily: mmFont,
+                  color: mmAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  letterSpacing: 1.2,
+                  shadows: [Shadow(color: Colors.black, blurRadius: 2)],
+                ),
+              ),
+            ],
+          ),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (problemData != null) ...[
                   Text(
-                      '事件の舞台: ${problemData['title'] ?? ''}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.amber,
-                        letterSpacing: 2,
-                      )),
+                    '事件の舞台: ${problemData['title'] ?? ''}',
+                    style: const TextStyle(
+                      fontFamily: mmFont,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: mmAccent,
+                      letterSpacing: 2,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text(problemData['story'] ?? '',
-                      style: const TextStyle(
-                          fontSize: 14, color: Colors.white70)),
+                  Text(
+                    problemData['story'] ?? '',
+                    style: const TextStyle(
+                      fontFamily: mmFont,
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
                   const Divider(
-                      color: Colors.amber,
+                      color: mmAccent,
                       height: 28,
                       thickness: 1.2),
                 ],
                 Text(
-                    'あなたの役職: ${myData['role'] ?? ''}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.amber)),
+                  'あなたの役職: ${myData['role'] ?? ''}',
+                  style: const TextStyle(
+                    fontFamily: mmFont,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: mmAccent,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('背景: $description',
-                    style: const TextStyle(
-                        fontSize: 14, color: Colors.white)),
+                Text(
+                  '背景: $description',
+                  style: const TextStyle(
+                    fontFamily: mmFont,
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
                 const SizedBox(height: 10),
-                Text('証拠:',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber[700])),
+                Text(
+                  '証拠:',
+                  style: TextStyle(
+                    fontFamily: mmFont,
+                    fontWeight: FontWeight.bold,
+                    color: mmAccent.withOpacity(0.85),
+                  ),
+                ),
                 ...evidenceList.map<Widget>((e) =>
                     Text('- $e',
                         style: const TextStyle(
-                            color: Colors.white))),
+                          fontFamily: mmFont,
+                          color: Colors.white))),
                 const SizedBox(height: 10),
-                Text('勝利条件:',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber[700])),
+                Text(
+                  '勝利条件:',
+                  style: TextStyle(
+                    fontFamily: mmFont,
+                    fontWeight: FontWeight.bold,
+                    color: mmAccent.withOpacity(0.85),
+                  ),
+                ),
                 ...winConditionsList.map<Widget>((e) =>
                     Text('- $e',
                         style: const TextStyle(
-                            color: Colors.white))),
+                          fontFamily: mmFont,
+                          color: Colors.white))),
                 const Divider(
-                    color: Colors.amber,
+                    color: mmAccent,
                     height: 28,
                     thickness: 1.2),
                 if (myCommonEvidenceList.isNotEmpty)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('あなたが選んだ共通証拠',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.amber[800])),
+                      Text(
+                        'あなたが選んだ共通証拠',
+                        style: TextStyle(
+                          fontFamily: mmFont,
+                          fontWeight: FontWeight.bold,
+                          color: mmAccent.withOpacity(0.9),
+                        ),
+                      ),
                       ...myCommonEvidenceList.map<Widget>(
                         (e) => Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('- ${e['title']}',
                                 style: const TextStyle(
-                                    color: Colors.white)),
-                            if ((e['detail'] ?? '')
-                                .toString()
-                                .isNotEmpty)
+                                  fontFamily: mmFont,
+                                  color: Colors.white,
+                                )),
+                            if ((e['detail'] ?? '').toString().isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(
-                                    left: 12,
-                                    bottom: 4),
+                                    left: 12, bottom: 4),
                                 child: Text('${e['detail']}',
                                     style: const TextStyle(
-                                        color:
-                                        Colors.white70,
+                                        fontFamily: mmFont,
+                                        color: Colors.white70,
                                         fontSize: 13)),
                               ),
                           ],
@@ -311,6 +364,20 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       ),
                     ],
                   ),
+                const SizedBox(height: 14),
+                Center(
+                  child: Text(
+                    '— 秘められた役割と証拠 —',
+                    style: const TextStyle(
+                      fontFamily: mmFont,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.white38,
+                      fontSize: 15,
+                      letterSpacing: 1.2,
+                      shadows: [Shadow(color: mmAccent, blurRadius: 2)],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -318,7 +385,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               style: TextButton.styleFrom(
-                  foregroundColor: Colors.amber),
+                foregroundColor: mmAccent,
+                textStyle: const TextStyle(
+                  fontFamily: mmFont,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
               child: const Text("閉じる"),
             )
           ],
@@ -329,30 +402,39 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Color backgroundColor = const Color(0xFF23232A);
-    final Color barColor = Colors.black87;
-    final Color mainAmber = Colors.amber[800]!;
-    final Color userBubble = mainAmber;
-    final Color peerBubble = Colors.white10;
-    final Color inputBg = Colors.black38;
-    final Color sendIconColor = Colors.amber;
-
     if (_fetchFailed) {
       return Scaffold(
-        backgroundColor: backgroundColor,
+        backgroundColor: mmBackground,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error, color: Colors.redAccent, size: 48),
+              const Icon(Icons.error, color: mmAccent, size: 48),
               const SizedBox(height: 16),
               const Text(
                 'チャット相手の情報が取得できませんでした。\nしばらくして再度お試しください。',
-                style: TextStyle(color: Colors.redAccent, fontSize: 16),
+                style: TextStyle(
+                  color: mmAccent,
+                  fontFamily: mmFont,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: mmAccent,
+                  foregroundColor: Colors.white,
+                  textStyle: const TextStyle(
+                    fontFamily: mmFont,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  elevation: 5,
+                ),
                 onPressed: () {
                   setState(() {
                     _fetchRetry = 0;
@@ -370,14 +452,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     if (user == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFF23232A),
-        body: Center(child: Text("サインイン情報の取得中...", style: TextStyle(color: Colors.white))),
+        backgroundColor: mmBackground,
+        body: Center(
+            child: Text("サインイン情報の取得中...",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontFamily: mmFont,
+                ))),
       );
     }
 
     if (peerUid == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFF23232A),
+        backgroundColor: mmBackground,
         body: Center(child: CircularProgressIndicator()),
       );
     }
@@ -389,30 +476,49 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // タイマー表示（中央で大きく）
-          Text(
-            '${secondsLeft ~/ 60}:${(secondsLeft % 60).toString().padLeft(2, '0')}',
-            style: const TextStyle(
-              color: Colors.amber,
-              fontWeight: FontWeight.bold,
-              fontSize: 48,
-              letterSpacing: 1.5,
+          Container(
+            decoration: BoxDecoration(
+              color: mmCard.withOpacity(0.88),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: mmAccent, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.11),
+                  blurRadius: 7,
+                  offset: const Offset(2, 7),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+            child: Text(
+              '${secondsLeft ~/ 60}:${(secondsLeft % 60).toString().padLeft(2, '0')}',
+              style: const TextStyle(
+                color: mmAccent,
+                fontFamily: mmFont,
+                fontWeight: FontWeight.bold,
+                fontSize: 48,
+                letterSpacing: 1.5,
+                shadows: [Shadow(color: Colors.black, blurRadius: 2)],
+              ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 18),
           // 相手情報の表示
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.account_circle, color: Colors.amber, size: 28),
+              const Icon(Icons.account_circle, color: mmAccent, size: 30),
               const SizedBox(width: 8),
               Text(
                 peerName != null && peerRole != null
                     ? '$peerName（$peerRole）さんとチャット中'
                     : 'チャット相手不明',
                 style: const TextStyle(
-                  color: Colors.amber,
-                  fontWeight: FontWeight.w600,
+                  color: mmAccent,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: mmFont,
                   fontSize: 18,
+                  letterSpacing: 1.1,
                 ),
               ),
             ],
@@ -422,18 +528,28 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: mmBackground,
       appBar: AppBar(
-        backgroundColor: barColor,
+        backgroundColor: Colors.black87,
+        elevation: 7,
+        shadowColor: mmAccent.withOpacity(0.2),
+        centerTitle: true,
         title: Text(
           peerName != null && peerRole != null
               ? '${peerRole}（${peerName}）との個別チャット'
               : '個別チャット',
-          style: const TextStyle(letterSpacing: 2),
+          style: const TextStyle(
+            letterSpacing: 2,
+            color: Colors.white,
+            fontFamily: mmFont,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            shadows: [Shadow(color: mmAccent, blurRadius: 2)],
+          ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.amber),
+            icon: const Icon(Icons.info_outline, color: mmAccent),
             tooltip: "あなたのキャラクター情報",
             onPressed: _showMyCharacterInfo,
           ),
@@ -443,15 +559,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         children: [
           timerAndPeerInfo,
           Container(
-            color: Colors.black45,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: mmCard.withOpacity(0.93),
+              border: Border(
+                top: BorderSide(color: mmAccent, width: 2),
+                bottom: BorderSide(color: mmAccent, width: 2),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, color: Colors.amber),
+                const Icon(Icons.info_outline, color: mmAccent),
                 const SizedBox(width: 6),
                 Text(
                   '個別チャットは制限時間内のみ有効です',
-                  style: const TextStyle(color: Colors.amber, fontSize: 15),
+                  style: const TextStyle(
+                    color: mmAccent,
+                    fontFamily: mmFont,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
                 if (timeUp)
                   const Padding(
@@ -460,6 +587,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       '（終了）',
                       style: TextStyle(
                           color: Colors.redAccent,
+                          fontFamily: mmFont,
                           fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -480,7 +608,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 if (snapshot.hasError) {
                   return Center(
                       child: Text('エラーが発生しました: ${snapshot.error}',
-                          style: const TextStyle(color: Colors.redAccent)));
+                          style: const TextStyle(
+                              color: mmAccent,
+                              fontFamily: mmFont,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16)));
                 }
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
@@ -490,7 +622,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   return Center(
                     child: Text(
                       'まだメッセージがありません\n最初のメッセージを送ってみましょう',
-                      style: const TextStyle(color: Colors.white54),
+                      style: const TextStyle(
+                          color: Colors.white54,
+                          fontFamily: mmFont,
+                          fontSize: 16),
                       textAlign: TextAlign.center,
                     ),
                   );
@@ -524,28 +659,45 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           children: [
                             if (!isMe) ...[
                               CircleAvatar(
-                                backgroundColor: mainAmber,
+                                backgroundColor: mmAccent,
                                 child: Text(
                                     senderRole.isNotEmpty
                                         ? senderRole[0]
                                         : '?',
-                                    style: const TextStyle(color: Colors.white)),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontFamily: mmFont,
+                                      fontWeight: FontWeight.bold,
+                                    )),
                               ),
                               const SizedBox(width: 6),
                             ],
                             Flexible(
                               child: Container(
-                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
                                 padding: const EdgeInsets.symmetric(
-                                    vertical: 8, horizontal: 14),
+                                    vertical: 11, horizontal: 18),
                                 decoration: BoxDecoration(
-                                  color: isMe ? userBubble : peerBubble,
+                                  color: isMe
+                                      ? mmAccent.withOpacity(0.85)
+                                      : mmCard.withOpacity(0.92),
                                   borderRadius: BorderRadius.only(
-                                    topLeft: const Radius.circular(18),
-                                    topRight: const Radius.circular(18),
-                                    bottomLeft: Radius.circular(isMe ? 18 : 2),
-                                    bottomRight: Radius.circular(isMe ? 2 : 18),
+                                    topLeft: const Radius.circular(20),
+                                    topRight: const Radius.circular(20),
+                                    bottomLeft: Radius.circular(isMe ? 20 : 7),
+                                    bottomRight: Radius.circular(isMe ? 7 : 20),
                                   ),
+                                  border: Border.all(
+                                    color: isMe ? mmAccent : mmCard,
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.13),
+                                      blurRadius: 4,
+                                      offset: const Offset(1, 3),
+                                    ),
+                                  ],
                                 ),
                                 child: Column(
                                   crossAxisAlignment: isMe
@@ -557,16 +709,25 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                           ? '$senderRole（$senderName）'
                                           : (senderName.isNotEmpty ? senderName : '名無し'),
                                       style: TextStyle(
+                                        fontFamily: mmFont,
                                         fontWeight: FontWeight.bold,
-                                        color: isMe ? Colors.white : mainAmber,
+                                        color: isMe ? Colors.white : mmAccent,
                                         fontSize: 13,
+                                        letterSpacing: 1,
+                                        shadows: isMe
+                                            ? [const Shadow(color: Colors.black38, blurRadius: 2)]
+                                            : [],
                                       ),
                                     ),
+                                    const SizedBox(height: 3),
                                     Text(
                                       data['text'] ?? '',
                                       style: TextStyle(
+                                        fontFamily: mmFont,
                                         color: isMe ? Colors.white : Colors.white70,
                                         fontSize: 16,
+                                        fontWeight: FontWeight.normal,
+                                        letterSpacing: 0.2,
                                       ),
                                     ),
                                   ],
@@ -576,12 +737,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             if (isMe) ...[
                               const SizedBox(width: 6),
                               CircleAvatar(
-                                backgroundColor: mainAmber,
+                                backgroundColor: mmAccent,
                                 child: Text(
                                     senderRole.isNotEmpty
                                         ? senderRole[0]
                                         : '?',
-                                    style: const TextStyle(color: Colors.white)),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontFamily: mmFont,
+                                      fontWeight: FontWeight.bold,
+                                    )),
                               ),
                             ],
                           ],
@@ -595,7 +760,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           ),
           if (!timeUp)
             Container(
-              color: inputBg,
+              color: mmCard.withOpacity(0.97),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
                 children: [
@@ -603,12 +768,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     child: TextField(
                       controller: textController,
                       enabled: !timeUp,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: mmFont,
+                        fontSize: 16,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'メッセージを入力',
-                        hintStyle: const TextStyle(color: Colors.white54),
+                        hintStyle: const TextStyle(
+                          color: Colors.white54,
+                          fontFamily: mmFont,
+                        ),
                         filled: true,
-                        fillColor: Colors.black38,
+                        fillColor: mmBackground.withOpacity(0.80),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(22),
                           borderSide: BorderSide.none,
@@ -624,19 +796,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     onPressed: (!timeUp && textController.text.trim().isNotEmpty)
                         ? _sendMessage
                         : null,
-                    color: sendIconColor,
+                    color: mmAccent,
+                    tooltip: "送信",
                   ),
                 ],
               ),
             ),
           if (timeUp)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
               child: Text(
                 'チャット時間は終了しました。',
-                style: TextStyle(color: Colors.redAccent),
+                style: const TextStyle(
+                  color: mmAccent,
+                  fontFamily: mmFont,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
+          const SizedBox(height: 10),
         ],
       ),
     );

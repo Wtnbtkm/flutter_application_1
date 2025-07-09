@@ -3,6 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/mock/screens/gamelobby_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// マーダーミステリー用カラーパレットとフォント
+const Color mmBackground = Color(0xFF1C1B2F);
+const Color mmCard = Color(0xFF292845);
+const Color mmAccent = Color(0xFFE84A5F);
+const String mmFont = 'MurderMysteryFont'; // assets/fontsに追加＆pubspec.yamlに登録想定
+
 // ルームに参加
 class RoomJoinScreen extends StatefulWidget {
   final String problemTitle;
@@ -74,7 +80,6 @@ class _RoomJoinScreenState extends State<RoomJoinScreen> {
       int maxNumber = 1;
       final regex = RegExp(r'名無しの参加者(\d+)$');
       for (var uid in players) {
-        // 各UIDのplayerName取得
         final subDoc = await FirebaseFirestore.instance
             .collection('rooms')
             .doc(roomId)
@@ -126,48 +131,144 @@ class _RoomJoinScreenState extends State<RoomJoinScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ルームに参加')),
+      backgroundColor: mmBackground,
+      appBar: AppBar(
+        backgroundColor: Colors.black87,
+        elevation: 7,
+        shadowColor: mmAccent.withOpacity(0.4),
+        centerTitle: true,
+        leading: const Icon(Icons.input, color: mmAccent),
+        title: Text(
+          'ルームに参加',
+          style: const TextStyle(
+            fontFamily: mmFont,
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            color: Colors.white,
+            letterSpacing: 2,
+            shadows: [Shadow(color: mmAccent, blurRadius: 3)],
+          ),
+        ),
+      ),
       body: Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'ルームに参加',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '問題: ${widget.problemTitle}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 28),
-                  const Text(
-                    '参加するルームIDを入力してください',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _roomIdController,
-                    decoration: const InputDecoration(
-                      labelText: 'ルームID',
-                      border: OutlineInputBorder(),
+              padding: const EdgeInsets.all(28.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: mmCard.withOpacity(0.97),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: mmAccent, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.22),
+                      blurRadius: 12,
+                      offset: const Offset(2, 7),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _joinRoom,
-                      child: const Text('参加する', style: TextStyle(fontSize: 18)),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.login, color: mmAccent, size: 46),
+                    const SizedBox(height: 10),
+                    Text(
+                      '事件の舞台へ足を踏み入れろ',
+                      style: const TextStyle(
+                        fontFamily: mmFont,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: mmAccent,
+                        letterSpacing: 1.5,
+                        shadows: [
+                          Shadow(color: Colors.black, blurRadius: 3, offset: Offset(2, 2)),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Text(
+                      '問題: ${widget.problemTitle}',
+                      style: const TextStyle(
+                        fontFamily: mmFont,
+                        color: Colors.white70,
+                        fontSize: 15,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 22),
+                    Text(
+                      '参加するルームIDを入力してください',
+                      style: const TextStyle(
+                        fontFamily: mmFont,
+                        color: mmAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _roomIdController,
+                      style: const TextStyle(
+                        fontFamily: mmFont,
+                        color: Colors.white,
+                        fontSize: 17,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'ルームID',
+                        labelStyle: const TextStyle(
+                          fontFamily: mmFont,
+                          color: mmAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        filled: true,
+                        fillColor: mmBackground.withOpacity(0.85),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: mmAccent, width: 2),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: mmAccent, width: 2),
+                        ),
+                        prefixIcon: const Icon(Icons.vpn_key, color: mmAccent),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.input, color: Colors.white),
+                        label: Text(
+                          '参加する',
+                          style: const TextStyle(
+                            fontFamily: mmFont,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 19,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: mmAccent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: const BorderSide(color: Colors.black, width: 1),
+                          ),
+                          elevation: 6,
+                          shadowColor: mmAccent.withOpacity(0.3),
+                        ),
+                        onPressed: _joinRoom,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                  ],
+                ),
               ),
             ),
           ),
