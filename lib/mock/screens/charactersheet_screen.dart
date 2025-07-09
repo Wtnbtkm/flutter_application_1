@@ -1,10 +1,15 @@
-//それぞれのプレイヤーの配役を表示
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/mock/screens/discussion_screen.dart';
+
+// マーダーミステリー用カラーパレットとフォント
+const Color mmBackground = Color(0xFF1C1B2F);
+const Color mmCard = Color(0xFF292845);
+const Color mmAccent = Color(0xFFE84A5F);
+const String mmFont = 'MurderMysteryFont'; // assets/fontsに追加＆pubspec.yamlに登録想定
 
 class CharacterSheetScreen extends StatefulWidget {
   final String roomId;
@@ -110,13 +115,13 @@ class _CharacterSheetScreenState extends State<CharacterSheetScreen> {
   Widget build(BuildContext context) {
     if (loading) {
       return const Scaffold(
-        backgroundColor: Color(0xFF23232A),
+        backgroundColor: mmBackground,
         body: Center(child: CircularProgressIndicator()),
       );
     }
     if (playerData == null || problemData == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFF23232A),
+        backgroundColor: mmBackground,
         body: Center(child: Text('データ取得エラー', style: TextStyle(color: Colors.white))),
       );
     }
@@ -172,24 +177,44 @@ class _CharacterSheetScreenState extends State<CharacterSheetScreen> {
                       icon: const Icon(Icons.flag, color: Colors.white),
                       onPressed: () => toggleReady(myReady),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: myReady ? Colors.green[700] : Colors.amber[800],
+                        backgroundColor: myReady ? Colors.green[700] : mmAccent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 18, letterSpacing: 2),
+                        textStyle: const TextStyle(
+                          fontFamily: mmFont,
+                          fontSize: 18,
+                          letterSpacing: 2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(13),
+                          side: BorderSide(color: mmAccent, width: 2),
+                        ),
+                        elevation: 4,
                       ),
-                      label: Text(myReady ? '準備解除' : '準備完了'),
+                      label: Text(myReady ? '準備解除' : '準備完了',
+                        style: const TextStyle(fontFamily: mmFont),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.play_arrow, color: Colors.white),
                       onPressed: allReady ? () => startGame() : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: allReady ? Colors.red[800] : Colors.grey,
+                        backgroundColor: allReady ? mmAccent : Colors.grey,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 18, letterSpacing: 2),
+                        textStyle: const TextStyle(
+                          fontFamily: mmFont,
+                          fontSize: 18,
+                          letterSpacing: 2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(13),
+                          side: BorderSide(color: mmAccent, width: 2),
+                        ),
+                        elevation: 4,
                       ),
-                      label: const Text('ゲームスタート'),
+                      label: const Text('ゲームスタート', style: TextStyle(fontFamily: mmFont)),
                     ),
                   ]);
                 } else {
@@ -198,22 +223,43 @@ class _CharacterSheetScreenState extends State<CharacterSheetScreen> {
                       icon: const Icon(Icons.flag, color: Colors.white),
                       onPressed: () => toggleReady(myReady),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: myReady ? Colors.green[700] : Colors.amber[800],
+                        backgroundColor: myReady ? Colors.green[700] : mmAccent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 18, letterSpacing: 2),
+                        textStyle: const TextStyle(
+                          fontFamily: mmFont,
+                          fontSize: 18,
+                          letterSpacing: 2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(13),
+                          side: BorderSide(color: mmAccent, width: 2),
+                        ),
+                        elevation: 4,
                       ),
-                      label: Text(myReady ? '準備解除' : '準備完了'),
+                      label: Text(myReady ? '準備解除' : '準備完了',
+                        style: const TextStyle(fontFamily: mmFont),
+                      ),
                     ),
                   );
                 }
 
                 return Scaffold(
-                  backgroundColor: const Color(0xFF23232A),
+                  backgroundColor: mmBackground,
                   appBar: AppBar(
                     backgroundColor: Colors.black87,
-                    leading: const Icon(Icons.assignment_ind, color: Colors.amber),
-                    title: const Text("あなたのキャラクター", style: TextStyle(letterSpacing: 2)),
+                    leading: const Icon(Icons.assignment_ind, color: mmAccent),
+                    title: Text(
+                      "あなたのキャラクター",
+                      style: const TextStyle(
+                        fontFamily: mmFont,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 22,
+                        color: Colors.white,
+                        letterSpacing: 2,
+                        shadows: [Shadow(color: mmAccent, blurRadius: 3)],
+                      ),
+                    ),
                     centerTitle: true,
                   ),
                   body: Padding(
@@ -222,51 +268,123 @@ class _CharacterSheetScreenState extends State<CharacterSheetScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Card(
-                            elevation: 10,
-                            color: Colors.black54,
+                          Container(
+                            decoration: BoxDecoration(
+                              color: mmCard.withOpacity(0.98),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: mmAccent, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.18),
+                                  blurRadius: 10,
+                                  offset: const Offset(2, 7),
+                                ),
+                              ],
+                            ),
                             child: Padding(
-                              padding: const EdgeInsets.all(18),
+                              padding: const EdgeInsets.all(22),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('事件の舞台: ${problemData!['title']}',
+                                  Text(
+                                    '事件の舞台: ${problemData!['title']}',
+                                    style: const TextStyle(
+                                      fontFamily: mmFont,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 22,
+                                      color: mmAccent,
+                                      letterSpacing: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    problemData!['story'] ?? '',
+                                    style: const TextStyle(
+                                      fontFamily: mmFont,
+                                      fontSize: 16,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                  const Divider(color: mmAccent, height: 36, thickness: 1.2),
+                                  Text(
+                                    'あなたの役職: ${playerData!['role']}',
+                                    style: const TextStyle(
+                                      fontFamily: mmFont,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 19,
+                                      color: mmAccent,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '背景: ${playerData!['description'].toString()}',
+                                    style: const TextStyle(
+                                      fontFamily: mmFont,
+                                      fontSize: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    '証拠:',
+                                    style: TextStyle(
+                                      fontFamily: mmFont,
+                                      fontWeight: FontWeight.bold,
+                                      color: mmAccent.withOpacity(0.8),
+                                    ),
+                                  ),
+                                  ...evidenceList.map<Widget>((e) => Text(
+                                      '- $e',
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 22,
-                                        color: Colors.amber,
-                                        letterSpacing: 2,
-                                      )),
-                                  const SizedBox(height: 8),
-                                  Text(problemData!['story'] ?? '',
-                                      style: const TextStyle(fontSize: 16, color: Colors.white70)),
-                                  const Divider(color: Colors.amber, height: 36, thickness: 1.2),
-                                  Text('あなたの役職: ${playerData!['role']}',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19, color: Colors.amber)),
-                                  const SizedBox(height: 8),
-                                  Text('背景: ${playerData!['description'].toString()}',
-                                      style: const TextStyle(fontSize: 16, color: Colors.white)),
+                                        fontFamily: mmFont,
+                                        color: Colors.white,
+                                      ),
+                                    )),
                                   const SizedBox(height: 12),
-                                  Text('証拠:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber[700])),
-                                  ...evidenceList.map<Widget>((e) => Text('- $e', style: const TextStyle(color: Colors.white))),
-                                  const SizedBox(height: 12),
-                                  Text('勝利条件:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber[700])),
-                                  ...winConditionsList.map<Widget>((e) => Text('- $e', style: const TextStyle(color: Colors.white))),
-                                  const Divider(color: Colors.amber, height: 36, thickness: 1.2),
+                                  Text(
+                                    '勝利条件:',
+                                    style: TextStyle(
+                                      fontFamily: mmFont,
+                                      fontWeight: FontWeight.bold,
+                                      color: mmAccent.withOpacity(0.8),
+                                    ),
+                                  ),
+                                  ...winConditionsList.map<Widget>((e) => Text(
+                                      '- $e',
+                                      style: const TextStyle(
+                                        fontFamily: mmFont,
+                                        color: Colors.white,
+                                      ),
+                                    )),
+                                  const Divider(color: mmAccent, height: 36, thickness: 1.2),
                                   if (myCommonEvidenceList.isNotEmpty)
                                     Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('あなたが選んだ共通証拠', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber[800])),
-                                        ...myCommonEvidenceList.map<Widget>((e) => Text('- $e', style: const TextStyle(color: Colors.white))),
+                                        Text(
+                                          'あなたが選んだ共通証拠',
+                                          style: TextStyle(
+                                            fontFamily: mmFont,
+                                            fontWeight: FontWeight.bold,
+                                            color: mmAccent.withOpacity(0.85),
+                                          ),
+                                        ),
+                                        ...myCommonEvidenceList.map<Widget>((e) => Text(
+                                            '- $e',
+                                            style: const TextStyle(
+                                              fontFamily: mmFont,
+                                              color: Colors.white,
+                                            ),
+                                          )),
                                       ],
                                     ),
                                 ],
                               ),
                             ),
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 30),
                           ...actionButtons,
+                          const SizedBox(height: 24),
                         ],
                       ),
                     ),

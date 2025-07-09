@@ -5,6 +5,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/mock/screens/charactersheet_screen.dart';
 
+// マーダーミステリー用カラーパレットとフォント
+const Color mmBackground = Color(0xFF1C1B2F);
+const Color mmCard = Color(0xFF292845);
+const Color mmAccent = Color(0xFFE84A5F);
+const String mmFont = 'MurderMysteryFont'; // 適切なフォントをassets/fontsに追加・pubspec.yamlで登録
+
 class StoryIntroScreen extends StatefulWidget {
   final String problemId;
   const StoryIntroScreen({Key? key, required this.problemId}) : super(key: key);
@@ -101,20 +107,20 @@ class _StoryIntroScreenState extends State<StoryIntroScreen> {
 
     if (loading) {
       return const Scaffold(
-        backgroundColor: Color(0xFF23232A),
+        backgroundColor: mmBackground,
         body: Center(child: CircularProgressIndicator()),
       );
     }
     if (problemData == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFF23232A),
+        backgroundColor: mmBackground,
         body: Center(child: Text('問題データ読み込み失敗', style: TextStyle(color: Colors.white))),
       );
     }
 
     if (roomId == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFF23232A),
+        backgroundColor: mmBackground,
         body: Center(child: Text('ルームIDが見つかりません。', style: TextStyle(color: Colors.white))),
       );
     }
@@ -128,7 +134,7 @@ class _StoryIntroScreenState extends State<StoryIntroScreen> {
       builder: (context, playersSnapshot) {
         if (!playersSnapshot.hasData) {
           return const Scaffold(
-            backgroundColor: Color(0xFF23232A),
+            backgroundColor: mmBackground,
             body: Center(child: CircularProgressIndicator()),
           );
         }
@@ -147,7 +153,7 @@ class _StoryIntroScreenState extends State<StoryIntroScreen> {
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Scaffold(
-                backgroundColor: Color(0xFF23232A),
+                backgroundColor: mmBackground,
                 body: Center(child: CircularProgressIndicator()),
               );
             }
@@ -169,12 +175,22 @@ class _StoryIntroScreenState extends State<StoryIntroScreen> {
                       ? null
                       : () => toggleReady(roomId, playerId, myReady),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: myReady ? Colors.green[700] : Colors.amber[800],
+                    backgroundColor: myReady ? Colors.green[700] : mmAccent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: const TextStyle(fontSize: 18, letterSpacing: 2),
+                    textStyle: const TextStyle(
+                      fontFamily: mmFont,
+                      fontSize: 18, letterSpacing: 2,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: BorderSide(color: mmAccent, width: 2),
+                    ),
+                    elevation: 4,
                   ),
-                  label: Text(myReady ? '準備解除' : '準備完了'),
+                  label: Text(myReady ? '準備解除' : '準備完了',
+                    style: const TextStyle(fontFamily: mmFont),
+                  ),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
@@ -191,12 +207,20 @@ class _StoryIntroScreenState extends State<StoryIntroScreen> {
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: allReady ? Colors.red[800] : Colors.grey,
+                    backgroundColor: allReady ? mmAccent : Colors.grey,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: const TextStyle(fontSize: 18, letterSpacing: 2),
+                    textStyle: const TextStyle(
+                      fontFamily: mmFont,
+                      fontSize: 18, letterSpacing: 2,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: BorderSide(color: mmAccent, width: 2),
+                    ),
+                    elevation: 4,
                   ),
-                  label: const Text('配役スタート'),
+                  label: const Text('配役スタート', style: TextStyle(fontFamily: mmFont)),
                 ),
               ]);
             } else {
@@ -207,22 +231,42 @@ class _StoryIntroScreenState extends State<StoryIntroScreen> {
                       ? null
                       : () => toggleReady(roomId, playerId, myReady),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: myReady ? Colors.green[700] : Colors.amber[800],
+                    backgroundColor: myReady ? Colors.green[700] : mmAccent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: const TextStyle(fontSize: 18, letterSpacing: 2),
+                    textStyle: const TextStyle(
+                      fontFamily: mmFont,
+                      fontSize: 18, letterSpacing: 2,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: BorderSide(color: mmAccent, width: 2),
+                    ),
+                    elevation: 4,
                   ),
-                  label: Text(myReady ? '準備解除' : '準備完了'),
+                  label: Text(myReady ? '準備解除' : '準備完了',
+                    style: const TextStyle(fontFamily: mmFont),
+                  ),
                 ),
               );
             }
 
             return Scaffold(
-              backgroundColor: const Color(0xFF23232A),
+              backgroundColor: mmBackground,
               appBar: AppBar(
                 backgroundColor: Colors.black87,
-                leading: const Icon(Icons.local_police, color: Colors.amber),
-                title: const Text('事件の導入', style: TextStyle(letterSpacing: 2)),
+                leading: const Icon(Icons.local_police, color: mmAccent),
+                title: Text(
+                  '事件の導入',
+                  style: const TextStyle(
+                    fontFamily: mmFont,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    color: Colors.white,
+                    letterSpacing: 2,
+                    shadows: [Shadow(color: mmAccent, blurRadius: 3)],
+                  ),
+                ),
                 centerTitle: true,
               ),
               body: Padding(
@@ -231,26 +275,39 @@ class _StoryIntroScreenState extends State<StoryIntroScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Card(
-                        elevation: 8,
-                        color: Colors.black54,
+                      Container(
+                        decoration: BoxDecoration(
+                          color: mmCard.withOpacity(0.98),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: mmAccent, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.18),
+                              blurRadius: 10,
+                              offset: const Offset(2, 7),
+                            ),
+                          ],
+                        ),
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(22),
                           child: Column(
                             children: [
                               Text(
                                 problemData!['title'] ?? '',
-                                style: TextStyle(
+                                style: const TextStyle(
+                                  fontFamily: mmFont,
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.amber[800],
+                                  color: mmAccent,
                                   letterSpacing: 2,
+                                  shadows: [Shadow(color: Colors.black, blurRadius: 2)],
                                 ),
                               ),
                               const SizedBox(height: 10),
                               Text(
                                 problemData!['story'] ?? '',
                                 style: const TextStyle(
+                                  fontFamily: mmFont,
                                   fontSize: 16,
                                   color: Colors.white70,
                                 ),
@@ -261,33 +318,38 @@ class _StoryIntroScreenState extends State<StoryIntroScreen> {
                       ),
                       const SizedBox(height: 32),
                       ...actionButtons,
+                      const SizedBox(height: 14),
                       if (!isHost)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 14),
-                          child: Text(
-                            'ホストが全員の準備完了を確認後、配役を開始します。',
-                            style: TextStyle(color: Colors.grey[400], fontSize: 15),
-                            textAlign: TextAlign.center,
+                        Text(
+                          'ホストが全員の準備完了を確認後、配役を開始します。',
+                          style: TextStyle(
+                            fontFamily: mmFont,
+                            color: Colors.grey[400],
+                            fontSize: 15,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       if (isHost && !allReady)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 14),
-                          child: Text(
-                            '全員が準備完了ボタンを押すと配役スタートボタンが押せます。',
-                            style: TextStyle(color: Colors.grey[400], fontSize: 15),
-                            textAlign: TextAlign.center,
+                        Text(
+                          '全員が準備完了ボタンを押すと配役スタートボタンが押せます。',
+                          style: TextStyle(
+                            fontFamily: mmFont,
+                            color: Colors.grey[400],
+                            fontSize: 15,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       if (rolesAssigned)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 14),
-                          child: Text(
-                            'すでに配役が完了しています。',
-                            style: TextStyle(color: Colors.redAccent, fontSize: 16),
-                            textAlign: TextAlign.center,
+                        Text(
+                          'すでに配役が完了しています。',
+                          style: const TextStyle(
+                            fontFamily: mmFont,
+                            color: Colors.redAccent,
+                            fontSize: 16,
                           ),
+                          textAlign: TextAlign.center,
                         ),
+                      const SizedBox(height: 28),
                     ],
                   ),
                 ),
