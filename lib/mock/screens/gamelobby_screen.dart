@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_1/mock/screens/story_intro_screen.dart';
-
+// マーダーミステリーのゲームの待機ロビー画面
 class GameLobbyScreen extends StatefulWidget {
+  // ルームID、問題タイトル、問題IDを受け取るコンストラクタ
   final String roomId;
   final String problemTitle;
   final String problemId;
@@ -20,16 +21,21 @@ class GameLobbyScreen extends StatefulWidget {
 }
 
 class _GameLobbyScreenState extends State<GameLobbyScreen> {
+  // 一度だけ画面遷移を行うためのフラグ
   bool navigatedToStoryIntro = false;
+  // 現在ログイン中のユーザーIDを保持
   String? currentUid;
 
   @override
   void initState() {
     super.initState();
+    // FirebaseAuthから現在ログイン中ユーザーのUIDを取得
     currentUid = FirebaseAuth.instance.currentUser?.uid;
   }
 
+  // Firestoreから指定したuidのプレイヤー名を取得する非同期関数
   Future<String> _getPlayerName(String uid) async {
+    // まずルーム内のplayersコレクションから取得
     final sub = await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
@@ -39,38 +45,48 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
     if (sub.exists && sub.data()?['playerName'] != null) {
       return sub.data()!['playerName'];
     }
+    // ルーム内に名前がなければ、グローバルなplayersコレクションから取得
     final doc = await FirebaseFirestore.instance.collection('players').doc(uid).get();
     if (doc.exists && doc.data()?['playerName'] != null) {
       return doc.data()!['playerName'];
     }
+    // 名前がなければ「名無しの参加者」を返す
     return '名無しの参加者';
   }
 
+  // 自分の準備状態（readyPlayers配列の中に自分がいるか）をトグル（切り替え）する処理
   Future<void> _toggleReady(List readyPlayers) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) return; // 未ログイン時は処理しない
     final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomId);
     final isReady = readyPlayers.contains(user.uid);
     if (isReady) {
+      // すでに準備済みなら、配列から自分のUIDを削除
       await roomRef.update({'readyPlayers': FieldValue.arrayRemove([user.uid])});
     } else {
+      // 未準備なら、配列に自分のUIDを追加
       await roomRef.update({'readyPlayers': FieldValue.arrayUnion([user.uid])});
     }
   }
 
+  /*ホストがゲームを開始するときにFirestoreのgameStartedフラグをtrueにして、
+  ストーリー紹介画面に遷移させる処理*/
   Future<void> _startGame(Map<String, dynamic> data) async {
     final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomId);
     await roomRef.update({'gameStarted': true});
     _navigateToStoryIntro();
   }
 
+  // ゲーム開始後、StoryIntroScreenへ画面遷移する処理
   void _navigateToStoryIntro() {
+    // 二重遷移防止のためのガード
     if (navigatedToStoryIntro) return;
     navigatedToStoryIntro = true;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (context) => StoryIntroScreen(problemId: widget.problemId),
+        // ルームIDを引数として渡す
         settings: RouteSettings(arguments: widget.roomId),
       ),
     );
@@ -78,12 +94,11 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // マーダーミステリーの雰囲気カラー・フォント
+    // マーダーミステリーの世界観に合う配色とフォント設定
     const Color backgroundColor = Color(0xFF1C1B2F);
     const Color cardColor = Color(0xFF292845);
     const Color accentColor = Color(0xFFE84A5F);
-    const String fontFamily = 'MurderMysteryFont'; // pubspec.yamlで追加しておくと良い
-
+    const String fontFamily = 'MurderMysteryFont'; // pubspec.yamlで登録済みのフォント
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
@@ -111,18 +126,29 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
         ),
         centerTitle: true,
       ),
+      // Firestoreのroomsコレクションの対象ルームのドキュメントを監視し、リアルタイム更新
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('rooms').doc(widget.roomId).snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+          // ルーム情報をMapとして取得
           final data = snapshot.data!.data() as Map<String, dynamic>;
+
+          // 参加者UIDリスト
           final players = List<String>.from(data['players'] ?? []);
+          // 準備完了している参加者UIDリスト
           final readyPlayers = List<String>.from(data['readyPlayers'] ?? []);
+          // 必要な参加人数（デフォルト6人）
           final requiredPlayers = data['requiredPlayers'] ?? 6;
+          // ホストかどうか判定
           final isHost = data['hostUid'] == FirebaseAuth.instance.currentUser?.uid;
+          // 全員参加かつ全員準備完了かどうか
           final allReady = players.length == requiredPlayers && readyPlayers.length == requiredPlayers;
+          // 自分が準備済みかどうか
           final myReady = currentUid != null && readyPlayers.contains(currentUid);
 
+          // 自分のUIDが参加者リストにいなければ再参加促すメッセージ表示
           if (currentUid != null && !players.contains(currentUid)) {
             return Center(
               child: Text(
@@ -132,10 +158,12 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
             );
           }
 
+          // ゲーム開始フラグがtrueなら画面遷移を行う（microtaskで遅延実行）
           if (data['gameStarted'] == true) {
             Future.microtask(() => _navigateToStoryIntro());
           }
 
+          // 画面本体（プレイヤーリスト表示、準備ボタン、ゲーム開始ボタンなど）
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8.0),
             child: Column(
@@ -181,6 +209,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                 ),
                 const SizedBox(height: 8),
                 Expanded(
+                  // 参加者UIDリストから名前を取得し、名前付きリストを作成して表示
                   child: FutureBuilder<List<Map<String, String>>>(
                     future: Future.wait(players.map((uid) async {
                       final name = await _getPlayerName(uid);
@@ -203,6 +232,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                               color: cardColor.withOpacity(0.92),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
+                                // 準備済みなら緑の枠、そうでなければアクセントカラー薄め
                                 color: readyPlayers.contains(p)
                                     ? Colors.greenAccent
                                     : accentColor.withOpacity(0.35),
@@ -218,6 +248,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                             ),
                             child: ListTile(
                               leading: Icon(
+                                // 準備状態でアイコン切替
                                 readyPlayers.contains(p)
                                     ? Icons.check_circle
                                     : Icons.hourglass_empty,
@@ -257,6 +288,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // 準備完了・解除ボタン
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () => _toggleReady(readyPlayers),
@@ -281,6 +313,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                       ),
                     ),
                     const SizedBox(width: 18),
+                    // ホストのみ表示されるゲーム開始ボタン
                     if (isHost)
                       Expanded(
                         child: ElevatedButton.icon(
