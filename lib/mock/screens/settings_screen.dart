@@ -3,7 +3,7 @@ import 'package:flutter_application_1/mock/screens/home_screen.dart';
 import 'package:flutter_application_1/mock/widgets/custom_button.dart';
 // 設定画面
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

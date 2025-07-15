@@ -17,7 +17,7 @@ class EvidenceSelectionScreen extends StatelessWidget {
   final Future<void> Function(int evidenceIndex) onChooseEvidence;
 
   const EvidenceSelectionScreen({
-    Key? key,
+    super.key,
     required this.commonEvidence,
     required this.myChosen,
     required this.playerOrder,
@@ -26,7 +26,7 @@ class EvidenceSelectionScreen extends StatelessWidget {
     required this.isMyTurnDraft,
     required this.playerUid,
     required this.onChooseEvidence,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

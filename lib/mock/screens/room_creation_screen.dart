@@ -16,11 +16,11 @@ class RoomCreationScreen extends StatefulWidget {
   final int requiredPlayers;
 
   const RoomCreationScreen({
-    Key? key,
+    super.key,
     required this.problemTitle,
     required this.problemId, 
     required this.requiredPlayers,
-  }) : super(key: key);
+  });
 
   @override
   State<RoomCreationScreen> createState() => _RoomCreationScreenState();

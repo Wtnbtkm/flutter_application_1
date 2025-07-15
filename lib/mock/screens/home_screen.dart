@@ -12,7 +12,7 @@ const Color mmAccent = Color(0xFFE84A5F);
 const String mmFont = 'MurderMysteryFont'; // assets/fontsに追加＆pubspec.yamlに登録想定
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   Widget mysteryButton({
     required String text,

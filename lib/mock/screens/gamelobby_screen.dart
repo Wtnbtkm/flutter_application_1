@@ -10,11 +10,11 @@ class GameLobbyScreen extends StatefulWidget {
   final String problemId;
 
   const GameLobbyScreen({
-    Key? key,
+    super.key,
     required this.roomId,
     required this.problemTitle,
     required this.problemId,
-  }) : super(key: key);
+  });
 
   @override
   State<GameLobbyScreen> createState() => _GameLobbyScreenState();

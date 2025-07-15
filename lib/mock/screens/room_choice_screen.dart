@@ -15,11 +15,11 @@ class RoomChoiceScreen extends StatelessWidget {
   final String problemId;
 
   const RoomChoiceScreen({
-    Key? key,
+    super.key,
     required this.problemTitle,
     required this.requiredPlayers,
     required this.problemId,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

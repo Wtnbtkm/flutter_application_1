@@ -10,8 +10,7 @@ const String mmFont = 'MurderMysteryFont'; // assets/fontsに追加＆pubspec.ya
 
 // ログイン画面
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
-
+  const LoginScreen({super.key});
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }

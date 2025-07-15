@@ -12,7 +12,7 @@ const String mmFont = 'MurderMysteryFont'; // assets/fontsに追加＆pubspec.ya
 // ルームに参加
 class RoomJoinScreen extends StatefulWidget {
   final String problemTitle;
-  const RoomJoinScreen({Key? key, required this.problemTitle}) : super(key: key);
+  const RoomJoinScreen({super.key, required this.problemTitle});
 
   @override
   _RoomJoinScreenState createState() => _RoomJoinScreenState();

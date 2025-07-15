@@ -11,7 +11,7 @@ const String mmFont = 'MurderMysteryFont'; // assets/fontsに追加＆pubspec.ya
 
 
 class ProblemListScreen extends StatelessWidget {
-  const ProblemListScreen({Key? key}) : super(key: key);
+  const ProblemListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

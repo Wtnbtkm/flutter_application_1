@@ -32,7 +32,7 @@ class DiscussionPhaseWidget extends StatelessWidget {
   final Future<void> Function(int) onChooseEvidence;
 
   const DiscussionPhaseWidget({
-    Key? key,
+    super.key,
     required this.roomId,
     required this.playerUid,
     required this.evidenceChoosingPhase,
@@ -53,7 +53,7 @@ class DiscussionPhaseWidget extends StatelessWidget {
     required this.problemData,
     required this.onChooseEvidence,
     this.onShowPlayerInfo,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

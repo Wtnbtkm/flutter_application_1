@@ -17,8 +17,8 @@ class ChatMessageBubble extends StatelessWidget {
     required this.senderUid,
     required this.text,
     required this.isMe,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   Future<Map<String, String>> _getSenderInfo() async {
     final doc = await FirebaseFirestore.instance
