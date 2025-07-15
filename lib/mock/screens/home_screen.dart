@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/mock/screens/GameState_Screen.dart';
 import 'package:flutter_application_1/mock/screens/problem_list_screen.dart';
 import 'package:flutter_application_1/mock/screens/player_registration_screen.dart';
 import 'package:flutter_application_1/mock/screens/settings_screen.dart';
 import 'package:flutter_application_1/mock/screens/launch_screen.dart';
 import 'package:flutter_application_1/mock/screens/login_screen.dart';
-
+//ホーム画面の実装
 // マーダーミステリー用カラーパレットとフォント
 const Color mmBackground = Color(0xFF1C1B2F);
 const Color mmCard = Color(0xFF292845);
@@ -161,16 +160,6 @@ class HomeScreen extends StatelessWidget {
                     },
                     icon: Icons.person_add,
                   ),
-                  /*mysteryButton(
-                    text: 'ゲーム管理画面へ',
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const GameStateScreen()),
-                      );
-                    },
-                    icon: Icons.dashboard_customize,
-                  ),*/
                   const SizedBox(height: 36),
                   Center(
                     child: Text(
