@@ -1,13 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-// 投票画面
+//投票画面（誰が怪しいかを投票するフェーズ）
 class VotingScreen extends StatefulWidget {
   final String roomId;
-  final List<Map<String, dynamic>> players; // [{'uid': ..., 'name': ...}, ...]
-  final int votingTimeLimit; // 投票時間制限（秒）
+  final List<Map<String, dynamic>> players;
+  final int votingTimeLimit;
 
   const VotingScreen({
     Key? key,
@@ -25,11 +25,17 @@ class _VotingScreenState extends State<VotingScreen> {
   String? selectedPlayerUid;
   int secondsLeft = 0;
   Timer? _timer;
+  bool _hasNavigated = false;
+  bool _isSubmitting = false;
+  int totalPlayerCount = 0;
 
   @override
   void initState() {
     super.initState();
     secondsLeft = widget.votingTimeLimit;
+    totalPlayerCount = widget.players.length;
+
+    _startVotingWatcher(); //投票状況の監視
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (secondsLeft > 0) {
         setState(() => secondsLeft--);
@@ -45,8 +51,22 @@ class _VotingScreenState extends State<VotingScreen> {
     super.dispose();
   }
 
+  void _startVotingWatcher() {
+  final votesRef = FirebaseFirestore.instance
+      .collection('rooms')
+      .doc(widget.roomId)
+      .collection('votes');
+
+  votesRef.snapshots().listen((snapshot) {
+    final voteCount = snapshot.docs.length;
+    if (voteCount >= totalPlayerCount && !_hasNavigated) {
+      _navigateToResult();
+    }
+  });
+}
+
   Future<void> _submitVote() async {
-    if (selectedPlayerUid == null || user == null) return;
+    if (user == null) return;
     await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
@@ -56,29 +76,73 @@ class _VotingScreenState extends State<VotingScreen> {
       'votedUid': selectedPlayerUid,
       'timestamp': FieldValue.serverTimestamp(),
     });
-    Navigator.pushReplacementNamed(context, '/result', arguments: widget.roomId);
+    _navigateToResult();
   }
 
-  void _onVoteTimeout() {
-    // タイムアップ時に投票しなければ自動遷移（投票しなかった場合はnull扱い）
-    if (selectedPlayerUid != null) {
-      _submitVote();
-    } else {
-      // 未投票として記録
-      if (user != null) {
-        FirebaseFirestore.instance
-            .collection('rooms')
-            .doc(widget.roomId)
-            .collection('votes')
-            .doc(user!.uid)
-            .set({
-          'votedUid': null,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-      }
-      Navigator.pushReplacementNamed(context, '/result', arguments: widget.roomId);
+  Future<void> _onVoteTimeout() async {
+    if (user != null) {
+      await FirebaseFirestore.instance
+          .collection('rooms')
+          .doc(widget.roomId)
+          .collection('votes')
+          .doc(user!.uid)
+          .set({
+        'votedUid': selectedPlayerUid,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
     }
-    _timer?.cancel();
+  }
+
+  Future<void> _navigateToResult() async {
+    if (_hasNavigated) return;
+    _hasNavigated = true;
+
+    final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomId);
+    late StreamSubscription<DocumentSnapshot> subscription;
+    // criminalUid を監視し、取得できたら遷移
+    subscription = roomRef.snapshots().listen((snapshot) async {
+    final data = snapshot.data();
+    final criminalUid = data?['criminalUid'];
+
+    if (criminalUid != null && criminalUid.toString().isNotEmpty) {
+      await subscription.cancel(); // 一度取得したら監視終了
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VotingResultScreen(
+            roomId: widget.roomId,
+            criminalUid: criminalUid,// ここは必要に応じて変更
+          ),
+        ),
+      );
+    }
+  });
+
+  // タイムアウト対策（10秒後に取得できなければ警告）
+  Future.delayed(const Duration(seconds: 10), () async {
+    final snapshot = await roomRef.get();
+    final criminalUid = snapshot.data()?['criminalUid'];
+    if (!_hasNavigated && (criminalUid == null || criminalUid.toString().isEmpty)) {
+      await subscription.cancel();
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('エラー'),
+          content: const Text('犯人情報がまだ設定されていません。\n少し待ってから再試行してください。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            )
+          ],
+        ),
+      );
+      }
+    });
   }
 
   @override
@@ -104,6 +168,11 @@ class _VotingScreenState extends State<VotingScreen> {
               '誰に投票しますか？',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+            if (selectedPlayerUid != null)
+              Text(
+                '現在の選択: ${widget.players.firstWhere((p) => p['uid'] == selectedPlayerUid)['name']}',
+                style: const TextStyle(color: Colors.grey),
+              ),
             const SizedBox(height: 16),
             Expanded(
               child: ListView(
@@ -125,9 +194,14 @@ class _VotingScreenState extends State<VotingScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: selectedPlayerUid == null ? null : _submitVote,
-                child: const Text('投票する'),
-              ),
+              onPressed: (selectedPlayerUid == null || _isSubmitting)
+                  ? null
+                  : () async {
+                      setState(() => _isSubmitting = true);
+                      await _submitVote();
+                    },
+              child: const Text('投票する'),
+            ),
             ),
           ],
         ),
@@ -136,10 +210,9 @@ class _VotingScreenState extends State<VotingScreen> {
   }
 }
 
-// 結果発表画面
 class VotingResultScreen extends StatelessWidget {
   final String roomId;
-  final String criminalUid; // ゲームマスターが正解(犯人)のUIDを知っている前提
+  final String criminalUid;
 
   const VotingResultScreen({
     Key? key,
@@ -154,7 +227,6 @@ class VotingResultScreen extends StatelessWidget {
         .collection('votes')
         .get();
 
-    // 集計
     final voteCount = <String, int>{};
     for (var doc in votesSnap.docs) {
       final votedUid = doc.data()['votedUid'];
@@ -162,31 +234,45 @@ class VotingResultScreen extends StatelessWidget {
         voteCount[votedUid] = (voteCount[votedUid] ?? 0) + 1;
       }
     }
-    // 最多票
-    String? maxUid;
+
+    // 得票数が最大のプレイヤーを複数取得
     int maxVotes = 0;
+    List<String> maxUids = [];
+
     voteCount.forEach((uid, count) {
       if (count > maxVotes) {
         maxVotes = count;
-        maxUid = uid;
+        maxUids = [uid];
+      } else if (count == maxVotes) {
+        maxUids.add(uid);
       }
     });
-    // 名前取得
-    String maxName = '';
-    if (maxUid != null) {
-      final pDoc = await FirebaseFirestore.instance.collection('players').doc(maxUid).get();
-      maxName = pDoc.data()?['playerName'] ?? '';
+
+    // プレイヤー名を取得
+    List<String> maxNames = [];
+    for (final uid in maxUids) {
+      final doc = await FirebaseFirestore.instance
+          .collection('rooms')
+          .doc(roomId)
+          .collection('players')
+          .doc(uid)
+          .get();
+      maxNames.add(doc.data()?['name'] ?? '???');
     }
-    // 犯人かどうか
-    final isCriminal = maxUid == criminalUid;
-    // 犯人名取得
-    String criminalName = '';
-    final cDoc = await FirebaseFirestore.instance.collection('players').doc(criminalUid).get();
-    criminalName = cDoc.data()?['playerName'] ?? '';
+
+    final cDoc = await FirebaseFirestore.instance
+        .collection('rooms')
+        .doc(roomId)
+        .collection('players')
+        .doc(criminalUid)
+        .get();
+
+    final criminalName = cDoc.data()?['name'] ?? '不明';
+    final isCriminal = maxUids.contains(criminalUid);
 
     return {
-      'maxUid': maxUid,
-      'maxName': maxName,
+      'maxUids': maxUids,
+      'maxNames': maxNames,
       'maxVotes': maxVotes,
       'isCriminal': isCriminal,
       'criminalName': criminalName,
@@ -213,17 +299,17 @@ class VotingResultScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
-                if (result['maxUid'] != null)
+                if ((result['maxNames'] as List).isNotEmpty)
                   Column(
                     children: [
                       Text(
-                        '最多票: ${result['maxName']}（${result['maxVotes']}票）',
+                        '最多票: ${result['maxNames'].join(", ")}（${result['maxVotes']}票）',
                         style: const TextStyle(fontSize: 18),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         result['isCriminal']
-                            ? '正解！${result['maxName']}が犯人です！'
+                            ? '正解！${result['maxNames'].join(",")}が犯人です！'
                             : '残念…犯人は「${result['criminalName']}」でした',
                         style: TextStyle(
                           color: result['isCriminal'] ? Colors.green : Colors.red,
@@ -238,7 +324,7 @@ class VotingResultScreen extends StatelessWidget {
                 const SizedBox(height: 36),
                 ElevatedButton(
                   onPressed: () {
-                    //その後のストーリーなどを表示させる
+                    // 次へ進むボタン処理（例: ホームに戻る、ゲーム終了など）
                   },
                   child: const Text('次へ'),
                 ),
