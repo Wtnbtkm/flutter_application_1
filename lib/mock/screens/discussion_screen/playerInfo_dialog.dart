@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+//配役情報を表示するためのダイアログ
 // マーダーミステリー用カラーパレットとフォント
 const Color mmCard = Color(0xFF292845);
 const Color mmAccent = Color(0xFFE84A5F);
@@ -10,16 +10,17 @@ class PlayerInfoDialog extends StatelessWidget {
   final Map<String, dynamic>? problemData;
 
   const PlayerInfoDialog({
-    Key? key,
+    super.key,
     required this.playerData,
     required this.problemData,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final evidenceList = List.from(playerData['evidence'] ?? []);
     final winConditionsList = List.from(playerData['winConditions'] ?? []);
     final description = playerData['description'] ?? '';
+    final isCriminal = playerData['isCriminal'] ?? false;
     final List<Map<String, dynamic>> commonEvidenceList =
         List<Map<String, dynamic>>.from(problemData?['commonEvidence'] ?? []);
     final List<int> chosenEvidenceIndexes =
@@ -114,6 +115,15 @@ class PlayerInfoDialog extends StatelessWidget {
                     style: const TextStyle(
                       fontFamily: mmFont,
                       color: Colors.white))),
+            const SizedBox(height: 10),
+            Text(
+              '犯人かどうか: ${playerData['isCriminal'] ? '犯人' : '無実'}',
+              style: TextStyle(
+                fontFamily: mmFont,
+                fontWeight: FontWeight.bold,
+                color: mmAccent.withOpacity(0.85),
+              ),
+            ),
             const SizedBox(height: 10),
             Text(
               '勝利条件:',
