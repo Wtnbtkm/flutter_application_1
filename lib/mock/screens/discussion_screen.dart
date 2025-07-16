@@ -59,7 +59,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
   String? _activePrivateChatId; // 現在アクティブな個別チャットのセッションID
 
   // --- 話し合い全体タイマー制御 ---
-  int discussionSecondsLeft = 5; // 話し合いフェーズの残り秒数
+  int discussionSecondsLeft = 10; // 話し合いフェーズの残り秒数
   Timer? _discussionTimer; // 話し合いフェーズのタイマー
   bool discussionTimeUp = false; // 話し合い時間が終了したかどうか
   bool discussionStarted = false; // 話し合いが開始されたかどうか
@@ -73,7 +73,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
   int discussionRound = 1; // 現在の話し合いラウンド数
   String phase = 'discussion'; // 現在のゲームフェーズ（'discussion', 'privateChat', 'suspicion', 'end'など）
   static const int maxRounds = 2; // 最大ラウンド数
-  static const int discussionTimePerRound = 5; // 各話し合いラウンドの秒数
+  static const int discussionTimePerRound = 10; // 各話し合いラウンドの秒数
   String? _lastOpenedSessionId; // 最後に開いた個別チャットセッションのID（重複起動防止用）
   bool _onPrivateChatEndCalled = false; // _onPrivateChatEndが呼び出されたかどうかを示すフラグ（二重実行防止用）
 
@@ -468,31 +468,32 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
   }
   // (E) 次の選択権者を厳密に決定
   Future<String?> getNextChatterUid(
-      List<String> playerOrder,
-      List<Map<String, dynamic>> privateChatHistory,
-      int discussionRound,
-      String? currentUid,
-  ) async {
-      if (playerOrder.isEmpty) return null;
-      int currentIdx = currentUid != null ? playerOrder.indexOf(currentUid) : 0;
-      if (currentIdx == -1) currentIdx = 0;
+    List<String> playerOrder,
+    List<Map<String, dynamic>> privateChatHistory,
+    int discussionRound,
+    String? currentUid,
+) async {
+    if (playerOrder.isEmpty) return null;
+    int startIdx = currentUid != null ? playerOrder.indexOf(currentUid) : 0;
+    if (startIdx == -1) startIdx = 0;
 
-      /// 最大人数分ループして未消化ペアがある人を見つける
-      for (int offset = 1; offset <= playerOrder.length; offset++) {
-      final idx = (currentIdx + offset) % playerOrder.length;
-      final candidate = playerOrder[idx];
-      final available = getAvailableChatPartnersFor(
-        candidate,
-        privateChatHistory,
-        playerOrder,
-        discussionRound,
-      );
-      if (available.isNotEmpty) {
-        return candidate;
-      }
+    // 最大人数分ループして、未消化ペアがいる人を見つける
+    for (int offset = 1; offset <= playerOrder.length; offset++) {
+        final idx = (startIdx + offset) % playerOrder.length;
+        final candidate = playerOrder[idx];
+        final available = getAvailableChatPartnersFor(
+          candidate,
+          privateChatHistory,
+          playerOrder,
+          discussionRound,
+        );
+        if (available.isNotEmpty) {
+            return candidate;
+        }
     }
     return null;
-  }
+}
+ 
   //(C) 個別チャット履歴から未消化ペアを正確に判定
   List<String> getAvailableChatPartnersFor(
     String uid,
@@ -519,8 +520,6 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     _onPrivateChatEndCalled = true;
     try {
       if (myUid != hostUid) return;
-      bool shouldStartNewRound = false;
-      int? nextRound;
       final roomDoc = FirebaseFirestore.instance.collection('rooms').doc(widget.roomId);
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
@@ -528,34 +527,23 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
         final roomData = roomSnap.data() ?? {};
         final allPlayers = List<String>.from(roomData['players'] ?? []);
         final currentRound = roomData['discussionRound'] ?? discussionRound;
-        final privateChatHistory = (roomData['privateChatHistory'] ?? [])
-            .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e)).toList();
+        final privateChatHistory = (roomData['privateChatHistory'] ?? []).map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e)).toList();
         final n = allPlayers.length;
         final totalPairs = (n * (n - 1)) ~/ 2;
         final roundHistory = privateChatHistory.where((pair) => pair['round'] == currentRound).toList();
-
         final privateChatsSnap = await roomDoc.collection('privateChats').get();
         final anyActiveChats = privateChatsSnap.docs.any((doc) => (doc.data()['active'] ?? false));
-
-        // アクティブなチャットがあれば何もしない！
         if (anyActiveChats) return;
-
-        // 全ペア終了時
+        // 全ペア消化済みならフェーズ終了
         if (roundHistory.length >= totalPairs) {
-          if (currentRound < maxRounds) {
-            // トランザクション内では「次ラウンド」を示すフラグだけ立てる
-              shouldStartNewRound = true;
-              nextRound = currentRound + 1;       
-          } else {
-            transaction.update(roomDoc, {            'phase': 'suspicion',
-              'privateChatPhase': false,
-              'privateChatHistory': [],
-              'currentPrivateChatterUid': null,
-            });        }
+          transaction.update(roomDoc, {          
+            'currentPrivateChatterUid': null,
+            'privateChatPhase': false,
+          });
         } else {
-          // ここで初めて次の選択権者を決める
-        String? nextChatter = await getNextChatterUid(
-              allPlayers, privateChatHistory, currentRound, roomData['currentPrivateChatterUid']);
+          // 今のcurrentPrivateChatterUidに選べる相手がいなければ即座に次の人へ
+          String? nextChatter = await getNextChatterUid(
+            allPlayers, privateChatHistory, currentRound, roomData['currentPrivateChatterUid']);
           if (nextChatter != null) {
             transaction.update(roomDoc, {
               'currentPrivateChatterUid': nextChatter,
@@ -574,8 +562,6 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
     }
   }
  
- 
-  
   /// チャットメッセージを送信する
   Future<void> _sendMessage() async {
     final message = _controller.text.trim(); // 入力されたメッセージを取得し、空白をトリム
