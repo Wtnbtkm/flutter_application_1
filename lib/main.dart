@@ -71,19 +71,6 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 背景画像: 薄暗い館 or レトロな紙テクスチャ
-          Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/mystery_bg.jpg'), // あなたの画像パスに合わせて変更
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                  Colors.black.withOpacity(0.7),
-                  BlendMode.darken,
-                ),
-              ),
-            ),
-          ),
           Center(
             child: SingleChildScrollView(
               child: ConstrainedBox(
