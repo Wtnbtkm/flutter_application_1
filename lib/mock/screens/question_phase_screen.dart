@@ -1,8 +1,9 @@
-// QuestionPhaseScreen質問・弁論画面（順番処理 + チャット + タイマー）
+// 質疑応答フェーズ画面
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_1/mock/screens/voting_screen.dart'; 
 
 const Color mmBackground = Color(0xFF1C1B2F);
 const Color mmCard = Color(0xFF292845);
@@ -13,13 +14,17 @@ class QuestionPhaseScreen extends StatefulWidget {
   final String roomId;
   final int questionTimeLimit;
   final List<String> players;
+  final String targetPlayer; // 弁論対象
+  final VoidCallback onFinish; // 弁論終了後に呼び出す
 
   const QuestionPhaseScreen({
-    Key? key,
+    super.key,
     required this.roomId,
     required this.players,
     this.questionTimeLimit = 30,
-  }) : super(key: key);
+    required this.targetPlayer,
+    required this.onFinish,
+  });
 
   @override
   State<QuestionPhaseScreen> createState() => _QuestionPhaseScreenState();
@@ -33,16 +38,28 @@ class _QuestionPhaseScreenState extends State<QuestionPhaseScreen> {
   Timer? timer;
   String? currentSuspectUid;
   String? currentSuspectName;
-  Map<String, Map<String, String>> playerInfo = {}; // uid -> {name, role}
+  Map<String, Map<String, String>> playerInfo = {};
   final TextEditingController _chatController = TextEditingController();
-
   String? myName;
   String? myRole;
 
   @override
   void initState() {
     super.initState();
-    _loadPlayerInfo().then((_) => _loadSuspicionOrder());
+    //_loadPlayerInfo().then((_) => _loadSuspicionOrder());
+    _loadPlayerInfo().then((_) {
+    // targetPlayer をもとに現在の回答者情報セット
+    _setCurrentSuspect(widget.targetPlayer);
+    // タイマー開始
+    secondsLeft = widget.questionTimeLimit;
+    _startTimer();
+    });
+  }
+
+  void _setCurrentSuspect(String uid) {
+    currentSuspectUid = uid;
+    currentSuspectName = playerInfo[uid]?['name'] ?? '???';
+    setState(() {});
   }
 
   Future<void> _loadPlayerInfo() async {
@@ -59,9 +76,10 @@ class _QuestionPhaseScreenState extends State<QuestionPhaseScreen> {
     }
     myName = playerInfo[user?.uid]?['name'] ?? '自分';
     myRole = playerInfo[user?.uid]?['role'] ?? '不明';
+    setState(() {});
   }
 
-  Future<void> _loadSuspicionOrder() async {
+  /*Future<void> _loadSuspicionOrder() async {
     final snap = await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
@@ -79,12 +97,16 @@ class _QuestionPhaseScreenState extends State<QuestionPhaseScreen> {
   }
 
   void _startNextPhase() {
-    if (currentIndex >= suspicionOrder.length) return;
+    if (currentIndex >= suspicionOrder.length) {
+      _goToVotingScreen();
+      return;
+    }
     currentSuspectUid = suspicionOrder[currentIndex];
     currentSuspectName = playerInfo[currentSuspectUid]?['name'] ?? '???';
     secondsLeft = widget.questionTimeLimit;
     _startTimer();
-  }
+    setState(() {});
+  }*/
 
   void _startTimer() {
     timer?.cancel();
@@ -94,11 +116,33 @@ class _QuestionPhaseScreenState extends State<QuestionPhaseScreen> {
         if (secondsLeft <= 0) {
           timer?.cancel();
           currentIndex++;
-          _startNextPhase();
+          print('質問フェーズ終了: targetPlayer=$currentSuspectUid'); // ← ここでログ出力
+          widget.onFinish(); // ここで親に弁論終了を通知
+          //_startNextPhase();
         }
       });
     });
   }
+
+  /*void _goToVotingScreen() {
+    final playerList = playerInfo.entries.map((entry) {
+      return {
+        'uid': entry.key,
+        'name': entry.value['name'] ?? '名無し',
+      };
+    }).toList();
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VotingScreen(
+          roomId: widget.roomId,
+          players: playerList,
+          votingTimeLimit: 120,
+        ),
+      ),
+    );
+  }*/
 
   void _sendChat() async {
     if (_chatController.text.trim().isEmpty || user == null) return;

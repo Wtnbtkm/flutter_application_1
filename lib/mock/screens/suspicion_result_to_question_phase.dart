@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/mock/screens/question_phase_screen.dart';
+import 'package:flutter_application_1/mock/screens/voting_screen.dart'; // 🔸 遷移先を適宜用意
 
 class SuspicionResultToQuestionPhase extends StatefulWidget {
   final String roomId;
   final int questionTimeLimit;
   final int overallTimeLimit;
+  final String targetPlayer;
+  final VoidCallback onFinish;
 
   const SuspicionResultToQuestionPhase({
     Key? key,
     required this.roomId,
     this.questionTimeLimit = 30,
     this.overallTimeLimit = 120,
+    required this.targetPlayer,      // 弁論対象
+    required this.onFinish,          // 弁論終了後に呼び出す
   }) : super(key: key);
 
   @override
@@ -30,7 +35,6 @@ class _SuspicionResultToQuestionPhaseState extends State<SuspicionResultToQuesti
   }
 
   Future<void> _fetchSuspectOrder() async {
-    // 怪しいとされたプレイヤーをtimestamp順にリストアップ（重複除去・順序維持）
     final snap = await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
@@ -47,6 +51,7 @@ class _SuspicionResultToQuestionPhaseState extends State<SuspicionResultToQuesti
         seen.add(suspect);
       }
     }
+
     setState(() {
       suspectOrder = order;
       loading = false;
@@ -54,6 +59,7 @@ class _SuspicionResultToQuestionPhaseState extends State<SuspicionResultToQuesti
   }
 
   void _onFinishQuestionPhase() {
+    print("質問フェーズ終了: currentIndex=$currentIndex");
     setState(() {
       currentIndex++;
     });
@@ -64,19 +70,30 @@ class _SuspicionResultToQuestionPhaseState extends State<SuspicionResultToQuesti
     if (loading) return const Center(child: CircularProgressIndicator());
 
     if (currentIndex >= suspectOrder.length) {
-      return const Center(child: Text('全員の弁論・質問が終了しました'));
+      // 全員の弁論が終了したら、別画面に遷移
+      Future.microtask(() {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VotingScreen(
+              roomId: widget.roomId,
+              players: suspectOrder.map((uid) => {'uid': uid}).toList(), // プレイヤーリストを適宜変換
+              votingTimeLimit: widget.overallTimeLimit,
+            ),
+          ),
+        );
+      });
+      return const Center(child: CircularProgressIndicator());
     }
 
     final targetPlayer = suspectOrder[currentIndex];
 
     return QuestionPhaseScreen(
       roomId: widget.roomId,
-      players: suspectOrder, // or 全員のプレイヤーリスト
+      targetPlayer: targetPlayer,            // 弁論対象を渡す
+      players: suspectOrder,                 // 質問者リスト（必要なら全員のプレイヤーリストに変更可）
       questionTimeLimit: widget.questionTimeLimit,
-
-      // ↓ 弁論対象プレイヤーを渡したい場合はQuestionPhaseScreenにパラメータ追加
-      // targetPlayer: targetPlayer,
-      // onFinish: _onFinishQuestionPhase,
+      onFinish: _onFinishQuestionPhase,      // 質問終了後の処理
     );
   }
 }

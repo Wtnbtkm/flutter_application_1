@@ -89,10 +89,38 @@ class _CharacterSheetScreenState extends State<CharacterSheetScreen> {
       );
       return;
     }
+      // criminalUid を設定する処理を追加
+    await assignCriminal(widget.roomId);
+    
     await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
         .update({'gameStarted2': true});
+  }
+
+  // ファイル末尾に追加（Stateクラス外）
+  Future<void> assignCriminal(String roomId) async {
+    final playersRef = FirebaseFirestore.instance
+        .collection('rooms')
+        .doc(roomId)
+        .collection('players');
+
+    final snapshot = await playersRef.get();
+    final players = snapshot.docs;
+
+    for (final doc in players) {
+      final data = doc.data();
+      if (data['isCriminal'] == true) {
+        final criminalUid = doc.id;
+
+        // rooms ドキュメントに犯人 UID を保存
+        await FirebaseFirestore.instance
+            .collection('rooms')
+            .doc(roomId)
+            .update({'criminalUid': criminalUid});
+        break;
+      }
+    }
   }
 
   void navigateToDiscussionScreen() {
@@ -129,6 +157,7 @@ class _CharacterSheetScreenState extends State<CharacterSheetScreen> {
     final evidenceList = List.from(playerData?['evidence'] ?? []);
     final winConditionsList = List.from(playerData?['winConditions'] ?? []);
     final commonEvidenceList = List.from(problemData?['commonEvidence'] ?? []);
+    final isCriminal = playerData ?['isCriminal'] ?? false;
     final chosenEvidenceIndexes = List<int>.from(playerData?['chosenCommonEvidence'] ?? []);
     final myCommonEvidenceList = [for (final i in chosenEvidenceIndexes) commonEvidenceList[i]];
     final myUid = FirebaseAuth.instance.currentUser?.uid;
@@ -357,6 +386,15 @@ class _CharacterSheetScreenState extends State<CharacterSheetScreen> {
                                       ),
                                     )),
                                   const Divider(color: mmAccent, height: 36, thickness: 1.2),
+                                  Text(
+                                    '犯人かどうか: ${playerData?['isCriminal'] ? '犯人' : '無実'}',
+                                    style: TextStyle(
+                                      fontFamily: mmFont,
+                                      fontWeight: FontWeight.bold,
+                                      color: mmAccent.withOpacity(0.85),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
                                   if (myCommonEvidenceList.isNotEmpty)
                                     Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,

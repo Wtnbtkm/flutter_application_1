@@ -33,6 +33,7 @@ class _RoomCreationScreenState extends State<RoomCreationScreen> {
   Future<void> createRoom() async {
     final roomName = _roomNameController.text.trim();
     final roomId = _roomIdController.text.trim();
+    print('DEBUG: Creating room with name: $roomName, ID: $roomId'); // デバッグ用ログ
 
     if (roomName.isEmpty || roomId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,12 +76,23 @@ class _RoomCreationScreenState extends State<RoomCreationScreen> {
         'requiredPlayers': widget.requiredPlayers,
         'readyPlayers': [],
         'createdAt': Timestamp.now(),
+        'discussionRound': 1, // 初期ラウンドは1
+        'privateChatHistory': [], // 個別チャット履歴を空のリストで初期化
+        'currentPrivateChatterUid': user.uid, // ホストが最初の個別チャット選択権を持つ
+        'privateChatPhase': false, // 初期フェーズは個別チャットではない
+        'phase': 'discussion', // 初期フェーズは話し合いフェーズ
+        'evidenceChoosingPhase': true, // 初期は証拠選択フェーズ
+        'evidenceTurn': 0, // 最初のプレイヤー（通常はホスト）から証拠選択を開始
+        'discussionSecondsLeft': 5, // discussion_screen.dart の discussionTimePerRound と合わせる
+        'discussionTimeUp': false,
+        'discussionStarted': false,
       });
 
       // ホストのplayerNameをplayersコレクションにも保存する
-      await FirebaseFirestore.instance.collection('players').doc(user.uid).set({
-        'playerName': hostName,
-      });
+      await FirebaseFirestore.instance.collection('players').doc(user.uid).set(
+        {'playerName': hostName},
+        SetOptions(merge: true), // 既存のフィールドを上書きせずにマージ
+      );
 
       await FirebaseFirestore.instance
       .collection('rooms')
@@ -106,12 +118,22 @@ class _RoomCreationScreenState extends State<RoomCreationScreen> {
           ),
         ),
       );
-    } catch (e) {
+    }on FirebaseException catch (e, stack) {
+      // Firebase固有のエラーを詳細にログ出力
+      print('❗ FirebaseException (createRoom): ${e.code} - ${e.message}');
+      print(stack); // スタックトレースも出力して原因を特定しやすくする
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('エラーが発生しました: $e')),
+        SnackBar(content: Text('ルーム作成エラー (Firebase): ${e.message}')),
       );
+      } catch (e, stack) {
+        // その他のエラーを詳細にログ出力
+        print('❗ General Error (createRoom): $e');
+        print(stack);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('エラーが発生しました: $e')),
+        );
+     }
     }
-  }
 
   @override
   Widget build(BuildContext context) {

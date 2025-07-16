@@ -13,7 +13,7 @@ const String mmFont = 'MurderMysteryFont'; // 適切なフォントをassets/fon
 
 class StoryIntroScreen extends StatefulWidget {
   final String problemId;
-  const StoryIntroScreen({Key? key, required this.problemId}) : super(key: key);
+  const StoryIntroScreen({super.key, required this.problemId});
 
   @override
   State<StoryIntroScreen> createState() => _StoryIntroScreenState();
@@ -72,10 +72,21 @@ class _StoryIntroScreenState extends State<StoryIntroScreen> {
         'description': character['description'],
         'evidence': character['evidence'],
         'winConditions': character['winConditions'],
+        'isCriminal': character['isCriminal'],
       }, SetOptions(merge: true)));
     }
     await Future.wait(futures);
-
+    
+    // 犯人のUIDをリストにまとめて保存
+    final criminalPlayers = <String>[];
+    for (int i = 0; i < characterTemplates.length; i++) {
+      if (characterTemplates[i]['isCriminal'] == true) {
+        criminalPlayers.add(players[i].id);
+      }
+    }
+    await roomRef.update({
+      'criminalUids': criminalPlayers, // List<String> に変更
+    });
     for (final player in players) {
       await roomRef.collection('players').doc(player.id).set({'isReady': false}, SetOptions(merge: true));
     }

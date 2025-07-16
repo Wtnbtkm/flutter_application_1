@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+//配役などの情報の表示される画面を後で修正（ウェジェットなど）
 // マーダーミステリー用カラーパレットとフォント
 const Color mmBackground = Color(0xFF1C1B2F);
 const Color mmCard = Color(0xFF292845);
@@ -14,16 +14,15 @@ class PrivateChatScreen extends StatefulWidget {
   final String sessionId;
   final int timeLimitSeconds;
   final int round;
-
-  static const int defaultTimeLimitSeconds = 20;
+  static const int defaultTimeLimitSeconds = 5;
 
   const PrivateChatScreen({
-    Key? key,
     required this.roomId,
     required this.sessionId,
     this.timeLimitSeconds = defaultTimeLimitSeconds,
     this.round = 1,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<PrivateChatScreen> createState() => _PrivateChatScreenState();
@@ -311,6 +310,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           fontFamily: mmFont,
                           color: Colors.white))),
                 const SizedBox(height: 10),
+                Text(
+                  '犯人かどうか: ${myData['isCriminal'] == true ? '犯人' : '無実'}',
+                  style: TextStyle(
+                    fontFamily: mmFont,
+                    fontWeight: FontWeight.bold,
+                    color: mmAccent.withOpacity(0.85),
+                  ),
+                ),
                 Text(
                   '勝利条件:',
                   style: TextStyle(

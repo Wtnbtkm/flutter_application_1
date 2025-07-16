@@ -21,13 +21,15 @@ class SuspicionInputScreen extends StatefulWidget {
   final String roomId;
   final List<String> players;
   final int timeLimitSeconds;
+  final String targetPlayer; // 弁論対象
 
   const SuspicionInputScreen({
-    Key? key,
+    super.key,
     required this.roomId,
     required this.players,
     this.timeLimitSeconds = 60,
-  }) : super(key: key);
+    required this.targetPlayer, // 弁論対象
+  });
 
   @override
   State<SuspicionInputScreen> createState() => _SuspicionInputScreenState();
@@ -40,16 +42,21 @@ class _SuspicionInputScreenState extends State<SuspicionInputScreen> {
   Timer? _timer;
   bool submitted = false;
   bool showResults = false;
+
   final user = FirebaseAuth.instance.currentUser;
   Map<String, String> playerNameMap = {};
   StreamSubscription<DocumentSnapshot>? roomSubscription;
+  StreamSubscription<QuerySnapshot>? suspicionSubscription;
+
+  bool allSubmitted = false; // 全員提出済みフラグ
+  bool transitioning = false; // 多重遷移防止フラグ
 
   @override
   void initState() {
     super.initState();
     secondsLeft = widget.timeLimitSeconds;
-    _startTimer();
     _fetchPlayerNames();
+    _startTimer();
     _listenToRoomChanges();
   }
 
@@ -70,19 +77,31 @@ class _SuspicionInputScreenState extends State<SuspicionInputScreen> {
   }
 
   void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (secondsLeft > 0) {
         setState(() {
           secondsLeft--;
         });
       } else {
         _timer?.cancel();
+
         if (!submitted) {
-          _submitSuspicion(auto: true);
+          await _submitSuspicion(auto: true);
         }
+
         setState(() {
           showResults = true;
         });
+
+        // 全員提出済みかチェック
+        final allDone = await _checkAllSubmitted();
+
+        if (allDone) {
+          _navigateToNextPhaseWithDelay();
+        } else {
+          // 全員未提出なら、提出状況監視開始
+          _waitForRemainingSubmissions();
+        }
       }
     });
   }
@@ -110,10 +129,18 @@ class _SuspicionInputScreenState extends State<SuspicionInputScreen> {
       submitted = true;
     });
 
-    _checkAllSubmittedAndSetReadyFlag();
+    // 全員提出チェック
+    final allDone = await _checkAllSubmitted();
+    if (allDone) {
+      setState(() {
+        allSubmitted = true;
+        showResults = true;
+      });
+      _navigateToNextPhaseWithDelay();
+    }
   }
 
-  Future<void> _checkAllSubmittedAndSetReadyFlag() async {
+  Future<bool> _checkAllSubmitted() async {
     final snap = await FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
@@ -140,39 +167,67 @@ class _SuspicionInputScreenState extends State<SuspicionInputScreen> {
           .doc('order')
           .set({'orderedSuspicionList': orderedList});
 
-      // nextPhaseReady を true にして全員に通知
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomId)
-          .update({'nextPhaseReady': true});
+      // nextPhaseReady フラグはこの画面では使わず、遷移制御は画面内で行う設計に変更
+
+      return true;
     }
+    return false;
   }
 
-  void _listenToRoomChanges() {
-    roomSubscription = FirebaseFirestore.instance
+  void _waitForRemainingSubmissions() {
+    suspicionSubscription?.cancel();
+    suspicionSubscription = FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId)
+        .collection('suspicions')
         .snapshots()
-        .listen((doc) async {
-      if (doc.exists && doc.data()?['nextPhaseReady'] == true) {
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => SuspicionResultToQuestionPhase(
-                roomId: widget.roomId,
-              ),
-            ),
-          );
+        .listen((snap) async {
+      if (snap.docs.length >= widget.players.length) {
+        suspicionSubscription?.cancel();
+        if (!transitioning) {
+          setState(() {
+            allSubmitted = true;
+          });
+          _navigateToNextPhaseWithDelay();
         }
       }
     });
+  }
+
+  void _navigateToNextPhaseWithDelay() {
+    if (transitioning) return;
+    transitioning = true;
+
+    // 5秒待ってから遷移
+    Future.delayed(const Duration(seconds: 5), () {
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => SuspicionResultToQuestionPhase(
+            roomId: widget.roomId,
+            questionTimeLimit: 30,
+            overallTimeLimit: widget.timeLimitSeconds,
+            targetPlayer: widget.targetPlayer,
+            onFinish: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ),
+      );
+    });
+  }
+
+  void _listenToRoomChanges() {
+    // 旧nextPhaseReadyフラグ監視は無効化または削除して問題ありません
+    // FirestoreのnextPhaseReadyフラグの代わりに画面内で完結した遷移制御を行うため
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     roomSubscription?.cancel();
+    suspicionSubscription?.cancel();
     super.dispose();
   }
 
@@ -192,7 +247,8 @@ class _SuspicionInputScreenState extends State<SuspicionInputScreen> {
           children: docs.reversed.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final isMe = user?.uid == data['playerUid'];
-            String display = '${playerNameMap[data['playerUid']] ?? data['playerName'] ?? '(名無し)'}「${playerNameMap[data['suspect']] ?? data['suspect']}が怪しい。理由：${data['reason']}」';
+            String display =
+                '${playerNameMap[data['playerUid']] ?? data['playerName'] ?? '(名無し)'}「${playerNameMap[data['suspect']] ?? data['suspect']}が怪しい。理由：${data['reason']}」';
             if (data['autoSubmitted'] == true) {
               display += '（時間切れ自動送信）';
             }
@@ -287,7 +343,7 @@ class _SuspicionInputScreenState extends State<SuspicionInputScreen> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                  child: showResults
+                  child: showResults || allSubmitted
                       ? _buildChatList()
                       : const Center(
                           child: Text(
@@ -303,9 +359,9 @@ class _SuspicionInputScreenState extends State<SuspicionInputScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            if (!submitted) ...[
+            if (!submitted && !showResults) ...[
               _buildInputForm(),
-            ] else ...[
+            ] else if (submitted && !showResults) ...[
               const Text(
                 'あなたの回答は送信済みです。',
                 style: TextStyle(
