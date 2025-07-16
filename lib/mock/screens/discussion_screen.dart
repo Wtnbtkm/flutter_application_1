@@ -76,8 +76,7 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
   static const int discussionTimePerRound = 10; // 各話し合いラウンドの秒数
   String? _lastOpenedSessionId; // 最後に開いた個別チャットセッションのID（重複起動防止用）
   bool _onPrivateChatEndCalled = false; // _onPrivateChatEndが呼び出されたかどうかを示すフラグ（二重実行防止用）
-
-  @override
+  
  @override
   void initState() {
     super.initState();
